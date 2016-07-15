@@ -1,11 +1,10 @@
-import click
 import sys
 import hax
 from collections import defaultdict
 import hax_config
 
 if len(sys.argv) != 2:
-	print 'Use is "python make_file_list.py <experiment name>'
+	print('Use is "python make_file_list.py <experiment name>')
 	sys.exit()
 
 
