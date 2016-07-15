@@ -4,7 +4,7 @@ import hax
 from collections import defaultdict
 import hax_config
 
-if len(sys.argv) != 4:
+if len(sys.argv) != 3:
 	print('Use is "python process_files.py <filename> <treemaker file>')
 	print('Filename must have either a root extension (single file) or a txt extension (list of root files).')
 	print('Treemaker file and class must share a name.')
@@ -37,7 +37,7 @@ else:
 	print('\nFilename given is not root or txt, please try again with appropriate file.\n\n')
 	sys.exit()
 
-hax_config.hax_config_init('XENON100')
+hax_config.hax_config('XENON100')
 
 # eventually need to add check on file to see if it
 # is xenon100 or xenon1t
