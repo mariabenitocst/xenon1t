@@ -49,7 +49,7 @@ WidthThreshold = 0.5 # us on the half
 # my own builder
 from collections import defaultdict
 
-class S1S2Properties(hax.minitrees.TreeMaker):
+class tm_electron_lifetime(hax.minitrees.TreeMaker):
     """Computing properties of the S1
     
     This TreeMaker will take the event class and turn it into a row
