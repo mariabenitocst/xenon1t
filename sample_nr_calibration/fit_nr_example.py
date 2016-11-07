@@ -397,6 +397,14 @@ class fit_nr(object):
                                                 'bin_edges_s2':self.a_s2_bin_edges
                                                 }
         self.gpu_pool = gpu_pool(num_gpus=num_gpus, grid_dim=numBlocks, block_dim=block_dim, num_dim_gpu_call=self.num_dimensions, d_gpu_single_copy_arrays=d_gpu_single_copy_array_dictionaries, function_name=self.gpu_function_name)
+        
+        
+        # before emcee, setup save locations
+        self.dir_specifier_name = self.d_data_parameters['name']
+        self.results_directory_name = './results'
+        self.path_for_save = '%s/%s/' % (self.results_directory_name, self.dir_specifier_name)
+        self.s_directory_save_plots_name = './plots/%s/' % (self.dir_specifier_name)
+        
 
         self.b_suppress_likelihood = False
 
@@ -822,10 +830,7 @@ class fit_nr(object):
     def run_mcmc(self, num_steps, num_walkers, num_threads=1, thin=1):
 
 
-        # before emcee, setup save locations
-        dir_specifier_name = self.d_data_parameters['name']
-        self.results_directory_name = './results'
-        self.path_for_save = '%s/%s/' % (self.results_directory_name, dir_specifier_name)
+
 
 
         if not os.path.isdir(self.path_for_save):
@@ -936,6 +941,48 @@ class fit_nr(object):
 
         pickle.dump(d_sampler, f_prev_sampler)
         f_prev_sampler.close()
+        
+
+
+    def create_corner_plot(self, num_walkers, num_steps_to_include):
+        
+        l_labels_for_corner_plot = ['w_value', 'alpha', 'zeta', 'beta', 'gamma', 'delta', 'kappa', 'eta', 'lambda', 'g1_value', 'extraction_efficiency', 'gas_gain_value', 'gas_gain_width', 'spe_res', 's1_acc_par0', 's1_acc_par1', 's2_acc_par0', 's2_acc_par1', 'scale_par']
+        num_dim = len(l_labels_for_corner_plot)
+        
+        sPathToFile = '%s/%s' % (self.path_for_save, 'sampler_dictionary.p')
+        
+        if os.path.exists(sPathToFile):
+            dSampler = pickle.load(open(sPathToFile, 'r'))
+            l_chains = []
+            for sampler in dSampler[num_walkers]:
+                l_chains.append(sampler['_chain'])
+
+            a_sampler = np.concatenate(l_chains, axis=1)
+
+            print 'Successfully loaded sampler!'
+        else:
+            print sPathToFile
+            print 'Could not find file!'
+            sys.exit()
+        
+        a_sampler = a_sampler[:, -num_steps_to_include:, :num_dim].reshape((-1, num_dim))
+        
+        print 'Starting corner plot...\n'
+        start_time = time.time()
+        fig = corner.corner(a_sampler, labels=l_labels_for_corner_plot, quantiles=[0.16, 0.5, 0.84], show_titles=True, title_fmt='.3e', title_kwargs={"fontsize": 12})
+        print 'Corner plot took %.3f minutes.\n\n' % ((time.time()-start_time)/60.)
+        
+        if not os.path.exists(self.s_directory_save_plots_name):
+            os.makedirs(self.s_directory_save_plots_name)
+
+        fig.savefig(self.s_directory_save_plots_name + self.d_data_parameters['name'] + '_corner.png')
+        
+        try:
+            print emcee.autocorr.integrated_time(np.mean(a_sampler, axis=0), axis=0,
+                                        low=10, high=None, step=1, c=2,
+                                        fast=False)
+        except:
+            print 'Chain too short to find autocorrelation time!'
 
 
 
@@ -970,7 +1017,7 @@ class fit_nr(object):
         std_ll = np.std(l_log_likelihoods)
 
         print 'Standard deviation for %.3e MC iterations is %f' % (self.num_mc_events, std_ll)
-        print 'Will scale LL such that variance is 0.1'
+        print 'Will scale LL such that standard deviation is 0.1'
 
         if std_ll < 0.1:
             self.b_suppress_likelihood = True
@@ -1002,7 +1049,7 @@ if __name__ == '__main__':
     #test.gpu_pool.map(test.wrapper_ln_likelihood_full_matching, [[13.7, 1.24, 0.0472, 239, 0.01385, 0.0620, 0.1394, 3.3, 1.14, 0.129, 0.984, 21.29, 8.01, 0.6, 1.96, 0.46, 91.2, 432.1, 1.3]])
     
     
-    test.run_mcmc(num_steps=5, num_walkers=128)
+    test.run_mcmc(num_steps=10, num_walkers=256)
     
     test.close_workers()
 
