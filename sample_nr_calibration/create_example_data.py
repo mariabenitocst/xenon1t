@@ -38,6 +38,7 @@ import pycuda.gpuarray
 import pycuda.autoinit
 
 gpu_example_observables_production_arrays = SourceModule(cuda_example_observables_production.cuda_full_observables_production_code, no_extern_c=True).get_function('gpu_example_observables_production_lindhard_arrays')
+gpu_example_uncorrelated_observables_production_arrays = SourceModule(cuda_example_observables_production.cuda_full_observables_production_code, no_extern_c=True).get_function('gpu_example_uncorrelated_observables_production_lindhard_arrays')
 setup_kernel = SourceModule(cuda_example_observables_production.cuda_full_observables_production_code, no_extern_c=True).get_function('setup_kernel')
 
 
@@ -177,9 +178,10 @@ l_gpu_args = [rng_states, drv.In(a_num_trials), drv.In(a_mean_field), drv.In(a_e
 
 gpu_example_observables_production_arrays(*l_gpu_args, **d_gpu_scale)
 
-a_indices_of_lost_events = np.where(a_s1 == -1.)
+a_indices_of_lost_events = np.where(a_s1 < 1e-3)
 a_s1 = np.delete(a_s1, a_indices_of_lost_events)
 a_s2 = np.delete(a_s2, a_indices_of_lost_events)
+
 
 print '\n\nPercentage of events after acceptance: %.3f\n\n' % (len(a_s1)/float(num_mc_events))
 
@@ -192,6 +194,96 @@ ax_s1_s2.set_ylabel(r'S2 [PE]')
 
 neriX_analysis.save_figure(l_save_directory, f_energy, 'produced_data_%s' % (d_data_parameters['name']), batch_mode=True)
 
+
+l_energies_to_examine = [5, 10, 15, 20]
+d_energy_comparison = {}
+
+for energy in l_energies_to_examine:
+
+    d_energy_comparison[energy] = {}
+
+    # do comparison of correlated and uncorrelated MC
+
+    a_energies = np.full(num_mc_events, energy, dtype=np.float32)
+
+    a_s1_correlated = np.full(num_mc_events, -1, dtype=np.float32)
+    a_s2_correlated = np.full(num_mc_events, -1, dtype=np.float32)
+
+    l_gpu_args[3] = drv.In(a_energies)
+    l_gpu_args[-2] = drv.InOut(a_s1_correlated)
+    l_gpu_args[-1] = drv.InOut(a_s2_correlated)
+
+    gpu_example_observables_production_arrays(*l_gpu_args, **d_gpu_scale)
+
+    a_indices_of_lost_events = np.where(a_s1_correlated < 1e-3)
+    a_s1_correlated = np.delete(a_s1_correlated, a_indices_of_lost_events)
+    a_s2_correlated = np.delete(a_s2_correlated, a_indices_of_lost_events)
+
+
+
+    # run for uncorrelated yields
+    a_s1_uncorrelated = np.full(num_mc_events, -1, dtype=np.float32)
+    a_s2_uncorrelated = np.full(num_mc_events, -1, dtype=np.float32)
+
+    l_gpu_args[3] = drv.In(a_energies)
+    l_gpu_args[-2] = drv.InOut(a_s1_uncorrelated)
+    l_gpu_args[-1] = drv.InOut(a_s2_uncorrelated)
+
+    gpu_example_uncorrelated_observables_production_arrays(*l_gpu_args, **d_gpu_scale)
+
+    a_indices_of_lost_events = np.where(a_s1_uncorrelated < 1e-3)
+    a_s1_uncorrelated = np.delete(a_s1_uncorrelated, a_indices_of_lost_events)
+    a_s2_uncorrelated = np.delete(a_s2_uncorrelated, a_indices_of_lost_events)
+
+    #print a_s1_uncorrelated
+    #print a_s2_uncorrelated
+
+
+    h_correlated, xedges, yedges = np.histogram2d(a_s1_correlated, np.log10(a_s2_correlated/a_s1_correlated), bins=[nb_s1, nb_logs2s1], range=[[lb_s1, ub_s1], [lb_logs2s1, ub_logs2s1]])
+    h_uncorrelated, xedges, yedges = np.histogram2d(a_s1_uncorrelated, np.log10(a_s2_uncorrelated/a_s1_uncorrelated), bins=[nb_s1, nb_logs2s1], range=[[lb_s1, ub_s1], [lb_logs2s1, ub_logs2s1]])
+
+
+
+    # plot correlated vs uncorrelated
+    d_energy_comparison[energy]['fig'], (d_energy_comparison[energy]['ax_2d'], d_energy_comparison[energy]['ax_profile']) = plt.subplots(1, 2, figsize=[12, 6])
+    im_uncorrelated = d_energy_comparison[energy]['ax_2d'].pcolorfast(xedges, yedges, (h_correlated-h_uncorrelated).T)
+    d_energy_comparison[energy]['fig'].colorbar(im_uncorrelated, ax=d_energy_comparison[energy]['ax_2d'])
+
+    d_energy_comparison[energy]['ax_2d'].set_title('(Full MC) - (Uncorrelated MC) @ %d keV' % (energy))
+    d_energy_comparison[energy]['ax_2d'].set_xlabel('S1 [PE]')
+    d_energy_comparison[energy]['ax_2d'].set_ylabel(r'$log_{10}(\frac{S2}{S1})$')
+    
+    
+    
+    # correlated profile
+    h_correlated = Hist2D(100, lb_s1, ub_s1, 500, lb_logs2s1, ub_logs2s1)
+    h_correlated.fill_array(np.asarray([a_s1_correlated, np.log10(a_s2_correlated/a_s1_correlated)]).T)
+    
+    dummy, a_x_corr, a_y_corr, a_x_corr_err_low, a_x_corr_err_high, a_y_corr_err_low, a_y_corr_err_high = neriX_analysis.profile_y_median(h_correlated)
+    
+    #d_energy_comparison[energy]['ax_profile'].errorbar(a_x_corr, a_y_corr, xerr=[a_x_corr_err_low, a_x_corr_err_high], yerr=[a_y_corr_err_low, a_y_corr_err_high], color='b', marker='.', linestyle='')
+    d_energy_comparison[energy]['ax_profile'].fill_between(a_x_corr, a_y_corr-a_y_corr_err_low, a_y_corr+a_y_corr_err_high, color='b', alpha='0.1')
+    d_energy_comparison[energy]['ax_profile'].plot(a_x_corr, a_y_corr, color='b', linestyle='--')
+    
+    
+    
+    # uncorrelated profile
+    h_uncorrelated = Hist2D(100, lb_s1, ub_s1, 500, lb_logs2s1, ub_logs2s1)
+    h_uncorrelated.fill_array(np.asarray([a_s1_uncorrelated, np.log10(a_s2_uncorrelated/a_s1_uncorrelated)]).T)
+    
+    dummy, a_x_uncorr, a_y_uncorr, a_x_uncorr_err_low, a_x_uncorr_err_high, a_y_uncorr_err_low, a_y_uncorr_err_high = neriX_analysis.profile_y_median(h_uncorrelated)
+    
+    #d_energy_comparison[energy]['ax_profile'].errorbar(a_x_uncorr, a_y_uncorr, xerr=[a_x_uncorr_err_low, a_x_uncorr_err_high], yerr=[a_y_uncorr_err_low, a_y_uncorr_err_high], color='r', marker='.', linestyle='')
+    d_energy_comparison[energy]['ax_profile'].fill_between(a_x_uncorr, a_y_uncorr-a_y_uncorr_err_low, a_y_uncorr+a_y_uncorr_err_high, color='r', alpha='0.1')
+    d_energy_comparison[energy]['ax_profile'].plot(a_x_uncorr, a_y_uncorr, color='r', linestyle='--')
+    
+    
+    
+    
+    
+    
+
+    neriX_analysis.save_figure(l_save_directory, d_energy_comparison[energy]['fig'], 'correlation_comparison_%d_keV_%s' % (energy, d_data_parameters['name']), batch_mode=True)
 
 
 # make plots of the S1 and S2 acceptances
@@ -231,8 +323,8 @@ ax_s2_acceptance.grid(True)
 neriX_analysis.save_figure(l_save_directory, f_acceptance, 's1_and_s2_acceptance_%s' % (d_data_parameters['name']), batch_mode=True)
 
 
-neriX_analysis.pickle_object(l_save_directory, a_s1, 'a_s1_%s' % (d_data_parameters['name']), batch_mode=True)
-neriX_analysis.pickle_object(l_save_directory, a_s2, 'a_s2_%s' % (d_data_parameters['name']), batch_mode=True)
+neriX_analysis.pickle_object(l_save_directory, a_s1, 'a_s1_%s' % (d_data_parameters['name']), batch_mode=False)
+neriX_analysis.pickle_object(l_save_directory, a_s2, 'a_s2_%s' % (d_data_parameters['name']), batch_mode=False)
 
 
 

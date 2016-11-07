@@ -241,7 +241,7 @@ __global__ void setup_kernel (int nthreads, curandState *state, unsigned long lo
 
 
 
-__global__ void gpu_example_observables_production_with_hist_lindhard_model(curandState *state, int *num_trials, float *meanField, float *aEnergy, float *w_value, float *alpha, float *zeta, float *beta, float *gamma, float *delta, float *kappa, float *eta, float *lambda, float *g1Value, float *extractionEfficiency, float *gasGainValue, float *gasGainWidth, float *speRes, float *s1_eff_par0, float *s1_eff_par1, float *s2_eff_par0, float *s2_eff_par1, int *num_bins_s1, float *bin_edges_s1, int *num_bins_s2, float *bin_edges_s2, int *hist_2d_array)
+__global__ void gpu_example_observables_production_with_hist_lindhard_model(curandState *state, int *num_trials, int *num_repetitions, float *meanField, float *aEnergy, float *w_value, float *alpha, float *zeta, float *beta, float *gamma, float *delta, float *kappa, float *eta, float *lambda, float *g1Value, float *extractionEfficiency, float *gasGainValue, float *gasGainWidth, float *speRes, float *s1_eff_par0, float *s1_eff_par1, float *s2_eff_par0, float *s2_eff_par1, int *num_bins_s1, float *bin_edges_s1, int *num_bins_s2, float *bin_edges_s2, int *hist_2d_array)
 {
 
 
@@ -278,199 +278,201 @@ __global__ void gpu_example_observables_production_with_hist_lindhard_model(cura
 	
 	if (iteration < *num_trials)
 	{
-	
-		// ------------------------------------------------
-		//  Draw random energy from distribution
-		// ------------------------------------------------
-		
-		
-		mcEnergy = aEnergy[iteration];
-        mc_dimensionless_energy = 11.5 * (mcEnergy) * powf(54., -7./3.);
-	
+        for (int i=0; i < *num_repetitions; i++)
+        {
+        
+            // ------------------------------------------------
+            //  Draw random energy from distribution
+            // ------------------------------------------------
+            
+            
+            mcEnergy = aEnergy[iteration];
+            mc_dimensionless_energy = 11.5 * (mcEnergy) * powf(54., -7./3.);
+        
 
-		// ------------------------------------------------
-		//  Find number of quanta
-		// ------------------------------------------------
-		
-		
-		lindhard_factor = *kappa * (3.*powf(mc_dimensionless_energy, 0.15) + 0.7*powf(mc_dimensionless_energy, 0.6) + mc_dimensionless_energy) / ( 1 + *kappa*(3.*powf(mc_dimensionless_energy, 0.15) + 0.7*powf(mc_dimensionless_energy, 0.6) + mc_dimensionless_energy) );
-		mcQuanta = curand_poisson(&s, mcEnergy*lindhard_factor / (*w_value/1000.));
-		
-		
-		// ------------------------------------------------
-		//  Calculate exciton to ion ratio
-		// ------------------------------------------------
-		
-		
-		
-		excitonToIonRatio = *alpha * powf(*meanField,-*zeta) * ( 1 - exp(-*beta * mc_dimensionless_energy) );
-        
-		
-		// ------------------------------------------------
-		//  Convert to excitons and ions
-		// ------------------------------------------------
-		
-		
-		probExcitonSuccess = 1. - 1./(1. + excitonToIonRatio);
-		if (probExcitonSuccess < 0 || probExcitonSuccess > 1) 
-		{	
-			state[iteration] = s;
-			return;
-		}
-		
-		mcExcitons = gpu_binomial(&s, mcQuanta, probExcitonSuccess);
-		mcIons = mcQuanta - mcExcitons;
-        
-        
-        // ------------------------------------------------
-		//  Calculate recombination probability
-		// ------------------------------------------------
-                
-		
-        sigma = *gamma * powf(*meanField, -*delta);
-		probRecombination = 1. - logf(1 + mcIons*sigma)/(mcIons*sigma);
-        
-        
-		//printf("hello %f\\n", probRecombination);
-        
-		
-		// ------------------------------------------------
-		//  Ion recombination
-		// ------------------------------------------------
+            // ------------------------------------------------
+            //  Find number of quanta
+            // ------------------------------------------------
+            
+            
+            lindhard_factor = *kappa * (3.*powf(mc_dimensionless_energy, 0.15) + 0.7*powf(mc_dimensionless_energy, 0.6) + mc_dimensionless_energy) / ( 1 + *kappa*(3.*powf(mc_dimensionless_energy, 0.15) + 0.7*powf(mc_dimensionless_energy, 0.6) + mc_dimensionless_energy) );
+            mcQuanta = curand_poisson(&s, mcEnergy*lindhard_factor / (*w_value/1000.));
+            
+            
+            // ------------------------------------------------
+            //  Calculate exciton to ion ratio
+            // ------------------------------------------------
+            
+            
+            
+            excitonToIonRatio = *alpha * powf(*meanField,-*zeta) * ( 1 - exp(-*beta * mc_dimensionless_energy) );
+            
+            
+            // ------------------------------------------------
+            //  Convert to excitons and ions
+            // ------------------------------------------------
+            
+            
+            probExcitonSuccess = 1. - 1./(1. + excitonToIonRatio);
+            if (probExcitonSuccess < 0 || probExcitonSuccess > 1) 
+            {	
+                state[iteration] = s;
+                continue;
+            }
+            
+            mcExcitons = gpu_binomial(&s, mcQuanta, probExcitonSuccess);
+            mcIons = mcQuanta - mcExcitons;
+            
+            
+            // ------------------------------------------------
+            //  Calculate recombination probability
+            // ------------------------------------------------
+                    
+            
+            sigma = *gamma * powf(*meanField, -*delta);
+            probRecombination = 1. - logf(1 + mcIons*sigma)/(mcIons*sigma);
+            
+            
+            //printf("hello %f\\n", probRecombination);
+            
+            
+            // ------------------------------------------------
+            //  Ion recombination
+            // ------------------------------------------------
 
-		if (mcIons < 1 || probRecombination < 0 || probRecombination > 1) 
-		{	
-			state[iteration] = s;
-			return;
-		}
-		
-		//return;
-		mcRecombined = gpu_binomial(&s, mcIons, probRecombination);
-		mcExcitons = mcExcitons + mcRecombined;
-		mcElectrons = mcIons - mcRecombined;
-        
-        
-       
-        // ------------------------------------------------
-		//  Apply Penning queching
-		// ------------------------------------------------
-        
-        
-        penning_factor = 1. / (1. + *eta*powf(mc_dimensionless_energy, *lambda));
-        
-        if (penning_factor < 0 || penning_factor > 1)
-		{	
-			state[iteration] = s;
-			return;
-		}
-        
-		mcPhotons = gpu_binomial(&s, mcExcitons, penning_factor);
-        
-        //printf("hello %f\\n", penning_factor);
-		
-		// ------------------------------------------------
-		//  Convert to S1 and S2 BEFORE smearing
-		// ------------------------------------------------
-		
-		if (mcPhotons < 1 || *g1Value < 0 || *g1Value > 1) 
-		{	
-			state[iteration] = s;
-			return;
-		}
-		// if (mcElectrons < 1 || *extractionEfficiency < 0 || *extractionEfficiency > 1)
-		// {
-		//	   state[iteration] = s;
-		//	   return;
-		// }
-		if (mcElectrons < 1 || *extractionEfficiency < 0)
-		{	
-			state[iteration] = s;
-			return;
-		}
-		if (*extractionEfficiency > 1)
-		{	
-			*extractionEfficiency = 1;
-		}
-		if (*gasGainWidth <= 0) 
-		{	
-			state[iteration] = s;
-			return;
-		}
-		
-		//return;
-		mcS1 = gpu_binomial(&s, mcPhotons, *g1Value);
-		//return;
-		mcExtractedElectrons = gpu_binomial(&s, mcElectrons, *extractionEfficiency);
-		mcS2 = (curand_normal(&s) * *gasGainWidth*powf(mcExtractedElectrons, 0.5)) + mcExtractedElectrons**gasGainValue;
-		
-		if (mcS1 < 0) 
-		{	
-			state[iteration] = s;
-			return;
-		}
-		if (mcS2 < 0) 
-		{	
-			state[iteration] = s;
-			return;
-		}
-		
-		
-		
-		
-		// ------------------------------------------------
-		//  Smear S1 and S2
-		// ------------------------------------------------
-		
-		if (*speRes <= 0)
-		{	
-			state[iteration] = s;
-			return;
-		}
-		
-		mcS1 = (curand_normal(&s) * *speRes*powf(mcS1, 0.5)) + mcS1;
-		if (mcS1 < 0) 
-		{	
-			state[iteration] = s;
-			return;
-		}
-        
-        
-        // trigger efficiency
-		//s2_eff_prob = 1. / (1. + expf(-(mcS2-*s2_eff_par0) / *s2_eff_par1));
-        s2_eff_prob = 1. - expf(-(mcS2-*s2_eff_par0) / *s2_eff_par1);
-		if (curand_uniform(&s) > s2_eff_prob)
-		{
-			state[iteration] = s;
-			return;
-		}
-		
+            if (mcIons < 1 || probRecombination < 0 || probRecombination > 1) 
+            {	
+                state[iteration] = s;
+                continue;
+            }
+            
+            //return;
+            mcRecombined = gpu_binomial(&s, mcIons, probRecombination);
+            mcExcitons = mcExcitons + mcRecombined;
+            mcElectrons = mcIons - mcRecombined;
+            
+            
+           
+            // ------------------------------------------------
+            //  Apply Penning queching
+            // ------------------------------------------------
+            
+            
+            penning_factor = 1. / (1. + *eta*powf(mc_dimensionless_energy, *lambda));
+            
+            if (penning_factor < 0 || penning_factor > 1)
+            {	
+                state[iteration] = s;
+                continue;
+            }
+            
+            mcPhotons = gpu_binomial(&s, mcExcitons, penning_factor);
+            
+            //printf("hello %f\\n", penning_factor);
+            
+            // ------------------------------------------------
+            //  Convert to S1 and S2 BEFORE smearing
+            // ------------------------------------------------
+            
+            if (mcPhotons < 1 || *g1Value < 0 || *g1Value > 1) 
+            {	
+                state[iteration] = s;
+                continue;
+            }
+            // if (mcElectrons < 1 || *extractionEfficiency < 0 || *extractionEfficiency > 1)
+            // {
+            //	   state[iteration] = s;
+            //	   continue;
+            // }
+            if (mcElectrons < 1 || *extractionEfficiency < 0)
+            {	
+                state[iteration] = s;
+                continue;
+            }
+            if (*extractionEfficiency > 1)
+            {	
+                *extractionEfficiency = 1;
+            }
+            if (*gasGainWidth <= 0) 
+            {	
+                state[iteration] = s;
+                continue;
+            }
+            
+            //return;
+            mcS1 = gpu_binomial(&s, mcPhotons, *g1Value);
+            //return;
+            mcExtractedElectrons = gpu_binomial(&s, mcElectrons, *extractionEfficiency);
+            mcS2 = (curand_normal(&s) * *gasGainWidth*powf(mcExtractedElectrons, 0.5)) + mcExtractedElectrons**gasGainValue;
+            
+            if (mcS1 < 0) 
+            {	
+                state[iteration] = s;
+                continue;
+            }
+            if (mcS2 < 0) 
+            {	
+                state[iteration] = s;
+                continue;
+            }
+            
+            
+            
+            
+            // ------------------------------------------------
+            //  Smear S1 and S2
+            // ------------------------------------------------
+            
+            if (*speRes <= 0)
+            {	
+                state[iteration] = s;
+                continue;
+            }
+            
+            mcS1 = (curand_normal(&s) * *speRes*powf(mcS1, 0.5)) + mcS1;
+            if (mcS1 < 0) 
+            {	
+                state[iteration] = s;
+                continue;
+            }
+            
+            
+            // trigger efficiency
+            //s2_eff_prob = 1. / (1. + expf(-(mcS2-*s2_eff_par0) / *s2_eff_par1));
+            s2_eff_prob = 1. - expf(-(mcS2-*s2_eff_par0) / *s2_eff_par1);
+            if (curand_uniform(&s) > s2_eff_prob)
+            {
+                state[iteration] = s;
+                continue;
+            }
+            
 
 
-		// peak finder efficiency
-		s1_eff_prob = 1. / (1. + expf(-(mcS1-*s1_eff_par0) / *s1_eff_par1));
-		if (curand_uniform(&s) > s1_eff_prob)
-		{
-			state[iteration] = s;
-			return;
-		}
-		
-		
-		s1_bin = gpu_find_lower_bound(num_bins_s1, bin_edges_s1, mcS1);
-		//log_s2_s1_bin = gpu_find_lower_bound(num_bins_log_s2_s1, bin_edges_log_s2_s1, log10f(mcS2/mcS1));
-		s2_bin = gpu_find_lower_bound(num_bins_s2, bin_edges_s2, mcS2);
-		
-		
-		if (s1_bin == -1 || s2_bin == -1)
-		{
-			state[iteration] = s;
-			return;
-		}
-		
-		atomicAdd(&hist_2d_array[s1_bin + *num_bins_s1*s2_bin], 1);
-		
-		state[iteration] = s;
-		return;
-	
+            // peak finder efficiency
+            s1_eff_prob = 1. / (1. + expf(-(mcS1-*s1_eff_par0) / *s1_eff_par1));
+            if (curand_uniform(&s) > s1_eff_prob)
+            {
+                state[iteration] = s;
+                continue;
+            }
+            
+            
+            s1_bin = gpu_find_lower_bound(num_bins_s1, bin_edges_s1, mcS1);
+            //log_s2_s1_bin = gpu_find_lower_bound(num_bins_log_s2_s1, bin_edges_log_s2_s1, log10f(mcS2/mcS1));
+            s2_bin = gpu_find_lower_bound(num_bins_s2, bin_edges_s2, mcS2);
+            
+            
+            if (s1_bin == -1 || s2_bin == -1)
+            {
+                state[iteration] = s;
+                continue;
+            }
+            
+            atomicAdd(&hist_2d_array[s1_bin + *num_bins_s1*s2_bin], 1);
+            
+            state[iteration] = s;
+        }
+        return;
 	}
 
   
@@ -699,6 +701,236 @@ __global__ void gpu_example_observables_production_lindhard_arrays(curandState *
   
 }
 
+
+
+
+
+__global__ void gpu_example_uncorrelated_observables_production_lindhard_arrays(curandState *state, int *num_trials, float *meanField, float *aEnergy, float *w_value, float *alpha, float *zeta, float *beta, float *gamma, float *delta, float *kappa, float *eta, float *lambda, float *g1Value, float *extractionEfficiency, float *gasGainValue, float *gasGainWidth, float *speRes, float *s1_eff_par0, float *s1_eff_par1, float *s2_eff_par0, float *s2_eff_par1, float *a_s1, float *a_s2)
+{
+
+
+	int iteration = blockIdx.x * blockDim.x * blockDim.y + threadIdx.y * blockDim.x + threadIdx.x;
+
+	
+	curandState s = state[iteration];
+	
+	float mcEnergy;
+    float mc_dimensionless_energy;
+    float lindhard_factor;
+    float penning_factor;
+    float sigma;
+	int mcQuanta;
+	float probExcitonSuccess;
+	int mcExcitons;
+	int mcIons;
+	int mcRecombined;
+	int mcPhotons;
+	int mcElectrons;
+	int mcExtractedElectrons;
+	float mcS1;
+	float mcS2;
+	
+	float excitonToIonRatio;
+	
+	float s1_eff_prob;
+	float s2_eff_prob;
+	
+	float probRecombination;
+	
+    float light_yield;
+    float charge_yield;
+    
+	if (iteration < *num_trials)
+	{
+	
+		// ------------------------------------------------
+		//  Draw random energy from distribution
+		// ------------------------------------------------
+		
+		
+		mcEnergy = aEnergy[iteration];
+        mc_dimensionless_energy = 11.5 * (mcEnergy) * powf(54., -7./3.);
+	
+
+		// ------------------------------------------------
+		//  Find number of quanta
+		// ------------------------------------------------
+		
+		
+		lindhard_factor = *kappa * (3.*powf(mc_dimensionless_energy, 0.15) + 0.7*powf(mc_dimensionless_energy, 0.6) + mc_dimensionless_energy) / ( 1 + *kappa*(3.*powf(mc_dimensionless_energy, 0.15) + 0.7*powf(mc_dimensionless_energy, 0.6) + mc_dimensionless_energy) );
+		mcQuanta = mcEnergy*lindhard_factor / (*w_value/1000.);
+		
+		
+		// ------------------------------------------------
+		//  Calculate exciton to ion ratio
+		// ------------------------------------------------
+		
+		
+		
+		excitonToIonRatio = *alpha * powf(*meanField,-*zeta) * ( 1 - exp(-*beta * mc_dimensionless_energy) );
+        
+		
+		// ------------------------------------------------
+		//  Convert to excitons and ions
+		// ------------------------------------------------
+		
+		
+		probExcitonSuccess = 1. - 1./(1. + excitonToIonRatio);
+		if (probExcitonSuccess < 0 || probExcitonSuccess > 1) 
+		{	
+			state[iteration] = s;
+			return;
+		}
+		
+		mcExcitons = mcQuanta * probExcitonSuccess;
+		mcIons = mcQuanta - mcExcitons;
+        
+        
+        // ------------------------------------------------
+		//  Calculate recombination probability
+		// ------------------------------------------------
+                
+		
+        sigma = *gamma * powf(*meanField, -*delta);
+		probRecombination = 1. - logf(1 + mcIons*sigma)/(mcIons*sigma);
+        
+        
+		//printf("hello %f\\n", probRecombination);
+        
+		
+		// ------------------------------------------------
+		//  Ion recombination
+		// ------------------------------------------------
+
+		if (mcIons < 1 || probRecombination < 0 || probRecombination > 1) 
+		{	
+			state[iteration] = s;
+			return;
+		}
+		
+		//return;
+		mcRecombined = mcIons*probRecombination;
+		mcExcitons = mcExcitons + mcRecombined;
+		mcElectrons = mcIons - mcRecombined;
+        
+        
+       
+        // ------------------------------------------------
+		//  Apply Penning queching
+		// ------------------------------------------------
+        
+        
+        penning_factor = 1. / (1. + *eta*powf(mc_dimensionless_energy, *lambda));
+        
+        if (penning_factor < 0 || penning_factor > 1)
+		{	
+			state[iteration] = s;
+			return;
+		}
+        
+		mcPhotons = mcExcitons*penning_factor;
+        
+        // now that we have light and charge yield
+        // produce uncorrelated values
+        
+        light_yield = mcPhotons / mcEnergy;
+        charge_yield = mcElectrons / mcEnergy;
+        mcPhotons = curand_poisson(&s, mcEnergy*light_yield);
+        mcElectrons = curand_poisson(&s, mcEnergy*charge_yield);
+        
+        //printf("hello %f\\n", penning_factor);
+		
+		// ------------------------------------------------
+		//  Convert to S1 and S2 BEFORE smearing
+		// ------------------------------------------------
+		
+		if (mcPhotons < 1 || *g1Value < 0 || *g1Value > 1) 
+		{	
+			state[iteration] = s;
+			return;
+		}
+
+		if (mcElectrons < 1 || *extractionEfficiency < 0)
+		{	
+			state[iteration] = s;
+			return;
+		}
+		if (*extractionEfficiency > 1)
+		{	
+			*extractionEfficiency = 1;
+		}
+		if (*gasGainWidth <= 0) 
+		{	
+			state[iteration] = s;
+			return;
+		}
+		
+		//return;
+		mcS1 = gpu_binomial(&s, mcPhotons, *g1Value);
+		//return;
+		mcExtractedElectrons = gpu_binomial(&s, mcElectrons, *extractionEfficiency);
+		mcS2 = (curand_normal(&s) * *gasGainWidth*powf(mcExtractedElectrons, 0.5)) + mcExtractedElectrons**gasGainValue;
+		
+		if (mcS1 < 0) 
+		{	
+			state[iteration] = s;
+			return;
+		}
+		if (mcS2 < 0) 
+		{	
+			state[iteration] = s;
+			return;
+		}
+		
+		
+		
+		
+		// ------------------------------------------------
+		//  Smear S1 and S2
+		// ------------------------------------------------
+		
+		if (*speRes <= 0)
+		{	
+			state[iteration] = s;
+			return;
+		}
+		
+		mcS1 = (curand_normal(&s) * *speRes*powf(mcS1, 0.5)) + mcS1;
+		if (mcS1 < 0) 
+		{	
+			state[iteration] = s;
+			return;
+		}
+		
+        // trigger efficiency
+		//s2_eff_prob = 1. / (1. + expf(-(mcS2-*s2_eff_par0) / *s2_eff_par1));
+		s2_eff_prob = 1. - expf(-(mcS2-*s2_eff_par0) / *s2_eff_par1);
+		if (curand_uniform(&s) > s2_eff_prob)
+		{
+			state[iteration] = s;
+			return;
+		}
+
+
+		// peak finder efficiency
+		s1_eff_prob = 1. / (1. + expf(-(mcS1-*s1_eff_par0) / *s1_eff_par1));
+		if (curand_uniform(&s) > s1_eff_prob)
+		{
+			state[iteration] = s;
+			return;
+		}
+		
+		
+        a_s1[iteration] = mcS1;
+        a_s2[iteration] = mcS2;
+		
+		state[iteration] = s;
+		return;
+	
+	}
+
+  
+}
 
 
 

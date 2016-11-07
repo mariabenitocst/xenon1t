@@ -131,10 +131,14 @@ class gpu_pool:
 
         print 'Putting bin edges on GPU...'
         gpu_bin_edges_s2 = pycuda.gpuarray.to_gpu(self.d_gpu_single_copy_arrays['bin_edges_s2'])
+        
+        print 'Finished placing arrays on GPU!\n'
+
 
 
         d_gpu_local_info = {'function_to_call':gpu_observables_func,
                             'rng_states':local_rng_states,
+                            'num_repetitions':self.d_gpu_single_copy_arrays['num_repetitions'],
                             'gpu_energies':gpu_energies,
                             'gpu_bin_edges_s1':gpu_bin_edges_s1,
                             'gpu_bin_edges_s2':gpu_bin_edges_s2}
@@ -157,26 +161,30 @@ class gpu_pool:
 
         #atexit.register(_finish_up, [ctx])
         #atexit.register(ctx.pop)
+        
+        print 'Registered exit code!\n'
 
 
 
         while self.alive:
+            #print self.q_in.empty()
+            #print len(list(self.q_in.queue))
+        
             if not self.q_in.empty():
                 task, args, id_num = self.q_in.get()
 
                 #print '\nTask ID: %d\n' % id_num
                 #print args
+                #print task
+                #print d_gpu_local_info
+                #print task(np.append(args, [d_gpu_local_info]))
                 sys.stdout.flush()
 
                 if task == 'exit':
                     _finish_up(ctx)
                 else:
-                    #print len(args)
-                    if True:# or len(args) == self.num_dim_gpu_call or len(args) == 21:
+                    if True:
                         args = np.append(args, [d_gpu_local_info])
-                    #print len(args)
-                    #print args
-                    #print task
                     return_value = task(args)
 
                 #print '\nFinished Task ID: %d\n' % id_num
@@ -188,15 +196,18 @@ class gpu_pool:
 
 
     def map(self, func, l_args):
-        start_time = time.time()
+        #start_time = time.time()
 
         #print '\n\nMap called\n\n'
-        sys.stdout.flush()
+        #sys.stdout.flush()
 
         len_input = len(l_args)
 
         for id_num, args in enumerate(l_args):
             self.q_in.put((func, args, id_num))
+        
+        #print self.q_in.empty()
+        #print len(list(self.q_in.queue))
 
         #while not self.q_in.empty():
         while len(self.q_out.queue) != len_input:
@@ -265,7 +276,7 @@ def reduce_method(m):
 
 
 class fit_nr(object):
-    def __init__(self, dataset_name, num_mc_events=1e5, num_gpus=1):
+    def __init__(self, dataset_name, num_mc_events=1e5, num_repetitions=1, num_gpus=1):
         
         self.dataset_name = dataset_name
 
@@ -391,10 +402,12 @@ class fit_nr(object):
         self.num_dimensions = 19
         self.gpu_function_name = 'gpu_example_observables_production_with_hist_lindhard_model'
 
+        self.num_repetitions = num_repetitions
 
         d_gpu_single_copy_array_dictionaries = {'energy':self.a_energies,
                                                 'bin_edges_s1':self.a_s1_bin_edges,
-                                                'bin_edges_s2':self.a_s2_bin_edges
+                                                'bin_edges_s2':self.a_s2_bin_edges,
+                                                'num_repetitions':self.num_repetitions
                                                 }
         self.gpu_pool = gpu_pool(num_gpus=num_gpus, grid_dim=numBlocks, block_dim=block_dim, num_dim_gpu_call=self.num_dimensions, d_gpu_single_copy_arrays=d_gpu_single_copy_array_dictionaries, function_name=self.gpu_function_name)
         
@@ -407,6 +420,8 @@ class fit_nr(object):
         
 
         self.b_suppress_likelihood = False
+        
+        print '\nMain thread initialization complete!\n'
 
 
     def close_workers(self):
@@ -558,6 +573,7 @@ class fit_nr(object):
         
 
         num_trials = np.asarray(self.num_mc_events, dtype=np.int32)
+        num_repetitions = np.asarray(d_gpu_local_info['num_repetitions'], dtype=np.int32)
         mean_field = np.asarray(self.d_data_parameters['mean_field'], dtype=np.float32)
 
         w_value = np.asarray(w_value, dtype=np.float32)
@@ -590,9 +606,12 @@ class fit_nr(object):
         
         #print d_gpu_local_info['d_gpu_energy'][degree_setting]
         
-        l_gpu_args = (d_gpu_local_info['rng_states'], drv.In(num_trials), drv.In(mean_field), d_gpu_local_info['gpu_energies'], drv.In(w_value), drv.In(alpha), drv.In(zeta), drv.In(beta), drv.In(gamma), drv.In(delta), drv.In(kappa), drv.In(eta), drv.In(lamb), drv.In(g1_value), drv.In(extraction_efficiency), drv.In(gas_gain_value), drv.In(gas_gain_width), drv.In(spe_res), drv.In(s1_acc_par0), drv.In(s1_acc_par1), drv.In(s2_acc_par0), drv.In(s2_acc_par1), drv.In(num_bins_s1), d_gpu_local_info['gpu_bin_edges_s1'], drv.In(num_bins_s2), d_gpu_local_info['gpu_bin_edges_s2'], drv.InOut(a_hist_2d))
+        l_gpu_args = (d_gpu_local_info['rng_states'], drv.In(num_trials), drv.In(num_repetitions), drv.In(mean_field), d_gpu_local_info['gpu_energies'], drv.In(w_value), drv.In(alpha), drv.In(zeta), drv.In(beta), drv.In(gamma), drv.In(delta), drv.In(kappa), drv.In(eta), drv.In(lamb), drv.In(g1_value), drv.In(extraction_efficiency), drv.In(gas_gain_value), drv.In(gas_gain_width), drv.In(spe_res), drv.In(s1_acc_par0), drv.In(s1_acc_par1), drv.In(s2_acc_par0), drv.In(s2_acc_par1), drv.In(num_bins_s1), d_gpu_local_info['gpu_bin_edges_s1'], drv.In(num_bins_s2), d_gpu_local_info['gpu_bin_edges_s2'], drv.InOut(a_hist_2d))
 
+        #print '\n\n\nBefore call...'
+        #print d_gpu_local_info
         d_gpu_local_info['function_to_call'](*l_gpu_args, **self.d_gpu_scale)
+        #print 'After call...\n\n\n'
         
 
         a_s1_s2_mc = np.reshape(a_hist_2d, (self.s2_settings[0], self.s1_settings[0])).T
@@ -605,7 +624,7 @@ class fit_nr(object):
             return -np.inf
 
         # this forces our scale to be close to 1 (difference comes from acceptance)
-        a_s1_s2_mc = np.multiply(a_s1_s2_mc, float(scale_par)*len(self.a_data_s1)/float(self.num_mc_events))
+        a_s1_s2_mc = np.multiply(a_s1_s2_mc, float(scale_par)*len(self.a_data_s1)/float(self.num_mc_events*self.num_repetitions))
 
         #'ml'
         if draw_fit:
@@ -705,7 +724,7 @@ class fit_nr(object):
 
         flat_s1_s2_data = np.asarray(self.a_data_hist_s1_s2.flatten(), dtype=np.float32)
         flat_s1_s2_mc = np.asarray(a_s1_s2_mc.flatten(), dtype=np.float32)
-        logLikelihoodMatching = c_log_likelihood(flat_s1_s2_data, flat_s1_s2_mc, len(flat_s1_s2_data), int(self.num_mc_events), 0.95)
+        logLikelihoodMatching = c_log_likelihood(flat_s1_s2_data, flat_s1_s2_mc, len(flat_s1_s2_data), int(self.num_mc_events*self.num_repetitions), 0.95)
 
         #print prior_ln_likelihood
         #print logLikelihoodMatching
@@ -947,6 +966,10 @@ class fit_nr(object):
     def create_corner_plot(self, num_walkers, num_steps_to_include):
         
         l_labels_for_corner_plot = ['w_value', 'alpha', 'zeta', 'beta', 'gamma', 'delta', 'kappa', 'eta', 'lambda', 'g1_value', 'extraction_efficiency', 'gas_gain_value', 'gas_gain_width', 'spe_res', 's1_acc_par0', 's1_acc_par1', 's2_acc_par0', 's2_acc_par1', 'scale_par']
+        a_true_values = [self.d_data_parameters['w_value'], self.d_data_parameters['alpha'], self.d_data_parameters['zeta'], self.d_data_parameters['beta'], self.d_data_parameters['gamma'], self.d_data_parameters['delta'], self.d_data_parameters['kappa'], self.d_data_parameters['eta'], self.d_data_parameters['lambda'], self.d_data_parameters['g1'][0], self.d_data_parameters['extraction_efficiency'][0], self.d_data_parameters['gas_gain_value'][0], self.d_data_parameters['gas_gain_width'][0], self.d_data_parameters['spe_res'][0], self.d_data_parameters['s1_eff_par0'][0], self.d_data_parameters['s1_eff_par1'][0], self.d_data_parameters['s2_eff_pars'][0], self.d_data_parameters['s2_eff_pars'][1], 1./0.765]
+        
+        
+        
         num_dim = len(l_labels_for_corner_plot)
         
         sPathToFile = '%s/%s' % (self.path_for_save, 'sampler_dictionary.p')
@@ -969,7 +992,7 @@ class fit_nr(object):
         
         print 'Starting corner plot...\n'
         start_time = time.time()
-        fig = corner.corner(a_sampler, labels=l_labels_for_corner_plot, quantiles=[0.16, 0.5, 0.84], show_titles=True, title_fmt='.3e', title_kwargs={"fontsize": 12})
+        fig = corner.corner(a_sampler, labels=l_labels_for_corner_plot, quantiles=[0.16, 0.5, 0.84], show_titles=True, title_fmt='.3e', title_kwargs={"fontsize": 8}, truths=a_true_values)
         print 'Corner plot took %.3f minutes.\n\n' % ((time.time()-start_time)/60.)
         
         if not os.path.exists(self.s_directory_save_plots_name):
@@ -1000,6 +1023,8 @@ class fit_nr(object):
 
     def suppress_likelihood(self, a_passed_free_par_guesses=None, iterations=200):
     
+        print '\nSuppressing likelihood fluctuations...'
+    
         # reset variables in case this is not the first time run
         self.b_suppress_likelihood = False
         self.ll_suppression_factor = 1.
@@ -1016,7 +1041,7 @@ class fit_nr(object):
 
         std_ll = np.std(l_log_likelihoods)
 
-        print 'Standard deviation for %.3e MC iterations is %f' % (self.num_mc_events, std_ll)
+        print 'Standard deviation for %.3e MC iterations is %f' % (self.num_mc_events*self.num_repetitions, std_ll)
         print 'Will scale LL such that standard deviation is 0.1'
 
         if std_ll < 0.1:
@@ -1037,7 +1062,7 @@ if __name__ == '__main__':
     copy_reg.pickle(types.MethodType, reduce_method)
 
 
-    test = fit_nr('nerix-like_nr', num_mc_events=1e4, num_gpus=1)
+    test = fit_nr('nerix-like_nr', num_mc_events=5e7, num_repetitions=10, num_gpus=1)
     test.suppress_likelihood()
     
     #test.gpu_pool.map(test.wrapper_ln_likelihood_full_matching_multiple_energies_lindhard_model, [l_test_parameters_multiple_energies_lindhard_model])
