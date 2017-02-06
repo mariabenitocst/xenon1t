@@ -737,13 +737,14 @@ class fit_nr(object):
             return -np.inf
         else:
             matching_ln_likelihood += logLikelihoodMatching
+
+        if self.b_suppress_likelihood:
+            matching_ln_likelihood /= self.ll_suppression_factor
     
         total_ln_likelihood = prior_ln_likelihood + matching_ln_likelihood
         #print total_ln_likelihood
         
-        if self.b_suppress_likelihood:
-            total_ln_likelihood /= self.ll_suppression_factor
-                
+
         if np.isnan(total_ln_likelihood):
             return -np.inf
         else:
@@ -992,7 +993,7 @@ class fit_nr(object):
         
         print 'Starting corner plot...\n'
         start_time = time.time()
-        fig = corner.corner(a_sampler, labels=l_labels_for_corner_plot, quantiles=[0.16, 0.5, 0.84], show_titles=True, title_fmt='.3e', title_kwargs={"fontsize": 8}, truths=a_true_values)
+        fig = corner.corner(a_sampler, labels=l_labels_for_corner_plot, quantiles=[0.16, 0.5, 0.84], show_titles=True, title_fmt='.3e', title_kwargs={"fontsize": 8}, truths=a_true_values, plot_datapoints=False, plot_density=True, plot_contours=False, no_fill_contours=True, smooth=True)
         print 'Corner plot took %.3f minutes.\n\n' % ((time.time()-start_time)/60.)
         
         if not os.path.exists(self.s_directory_save_plots_name):
@@ -1062,7 +1063,7 @@ if __name__ == '__main__':
     copy_reg.pickle(types.MethodType, reduce_method)
 
 
-    test = fit_nr('nerix-like_nr', num_mc_events=5e7, num_repetitions=10, num_gpus=1)
+    test = fit_nr('nerix-like_nr', num_mc_events=5e6, num_repetitions=10, num_gpus=1)
     test.suppress_likelihood()
     
     #test.gpu_pool.map(test.wrapper_ln_likelihood_full_matching_multiple_energies_lindhard_model, [l_test_parameters_multiple_energies_lindhard_model])
@@ -1074,7 +1075,7 @@ if __name__ == '__main__':
     #test.gpu_pool.map(test.wrapper_ln_likelihood_full_matching, [[13.7, 1.24, 0.0472, 239, 0.01385, 0.0620, 0.1394, 3.3, 1.14, 0.129, 0.984, 21.29, 8.01, 0.6, 1.96, 0.46, 91.2, 432.1, 1.3]])
     
     
-    test.run_mcmc(num_steps=10, num_walkers=256)
+    test.run_mcmc(num_steps=100, num_walkers=256)
     
     test.close_workers()
 

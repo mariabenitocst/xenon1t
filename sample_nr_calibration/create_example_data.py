@@ -127,7 +127,7 @@ ub_logs2s1 = 3
 x_pts_energy = np.linspace(lb_energy, ub_energy, nb_energy)
 y_pts_energy = energy_pdf(x_pts_energy)
 
-f_energy, (ax_energy_pdf, ax_energy_sample, ax_s1_s2) = plt.subplots(1, 3, figsize=[18, 6])
+f_energy, (ax_energy_pdf, ax_energy_sample, ax_s1_s2, ax_s1_log) = plt.subplots(1, 4, figsize=[22, 6])
 
 h_energy, be_energy = np.histogram(a_energies, bins=nb_energy, range=[lb_energy, ub_energy])
 
@@ -191,6 +191,14 @@ ax_s1_s2.hist2d(a_s1, a_s2, bins=[nb_s1, nb_s2], range=[[lb_s1, ub_s1], [lb_s2, 
 ax_s1_s2.set_title('Observables for NR Source')
 ax_s1_s2.set_xlabel('S1 [PE]')
 ax_s1_s2.set_ylabel(r'S2 [PE]')
+
+
+ax_s1_log.hist2d(a_s1, np.log10(a_s2/a_s1), bins=[nb_s1, nb_logs2s1], range=[[lb_s1, ub_s1], [lb_logs2s1, ub_logs2s1]])
+ax_s1_log.set_title('Observables for NR Source')
+ax_s1_log.set_xlabel('S1 [PE]')
+ax_s1_log.set_ylabel(r'$log_{10}(\frac{S2}{S1})$')
+
+
 
 neriX_analysis.save_figure(l_save_directory, f_energy, 'produced_data_%s' % (d_data_parameters['name']), batch_mode=True)
 
