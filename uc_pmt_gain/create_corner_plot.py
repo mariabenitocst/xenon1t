@@ -15,8 +15,8 @@ import corner, time
 import cPickle as pickle
 import tqdm
 
-if len(sys.argv) != 3:
-    print 'Use is python create_corner_plot.py <filename> <num walkers>'
+if len(sys.argv) != 4:
+    print 'Use is python create_corner_plot.py <filename> <num walkers> <examine cascade>'
     sys.exit()
 
 print '\n\nBy default look for all energies - change source if anything else is needed.\n'
@@ -25,12 +25,19 @@ print '\n\nBy default look for all energies - change source if anything else is 
 
 filename = sys.argv[1]
 num_walkers = int(sys.argv[2])
+if sys.argv[3] == 't':
+    b_cascade = True
+else:
+    b_cascade = False
 
 l_plots = ['plots', filename]
 
 dir_specifier_name = filename
 
-sPathToFile = './results/%s/sampler_dictionary.p' % (dir_specifier_name)
+if b_cascade:
+    sPathToFile = './results/%s/sampler_dictionary.p' % (dir_specifier_name)
+else:
+    sPathToFile = './results/%s/sampler_dictionary_gm.p' % (dir_specifier_name)
 
 if os.path.exists(sPathToFile):
     dSampler = pickle.load(open(sPathToFile, 'r'))
@@ -47,14 +54,22 @@ else:
     sys.exit()
 
 
+if b_cascade:
+    l_free_pars = ['p_hit_first_dynode', 'mean_electrons_per_dynode', 'width_electrons_per_dynode', 'p_e_freed', 'bkg_mean', 'bkg_std', 'bkg_exp', 'prob_exp_bkg', 'mean_num_pe_mpe', 'scale_par']
+else:
+    if not filename[:5] == 'nerix':
+        l_free_pars = ['p_hit_first_dynode', 'spe_mean', 'spe_std', 'underamplified_mean', 'underamplified_std', 'bkg_mean', 'bkg_std', 'bkg_exp', 'prob_exp_bkg', 'mean_num_pe_mpe', 'scale_par']
+    else:
+        l_free_pars = ['p_hit_first_dynode', 'spe_mean', 'spe_std', 'underamplified_mean', 'underamplified_std', 'bkg_mean', 'bkg_std', 'mean_num_pe_mpe', 'scale_par']
 
-l_free_pars = ['p_hit_first_dynode', 'mean_electrons_per_dynode', 'width_electrons_per_dynode', 'p_e_freed', 'bkg_mean', 'bkg_std', 'bkg_exp', 'prob_exp_bkg', 'mean_num_pe_mpe', 'scale_par']
+
 num_dim = len(l_free_pars)
 l_colors = plt.get_cmap('jet')(np.linspace(0, 1.0, num_dim))
-#l_colors = ['b', 'r', 'g', 'y', 'black', 'm', 'darkcyan', 'brown', 'r', 'g']
 
-
-num_steps = 1000
+if b_cascade:
+    num_steps = 1000
+else:
+    num_steps = 2000
 
 samples = a_full_sampler[:, -num_steps:, :].reshape((-1, num_dim))
 
@@ -131,8 +146,15 @@ for directory in l_plots:
 if not os.path.exists(s_path_for_save):
     os.makedirs(s_path_for_save)
 
-fig.savefig('%s%s_corner_plot.png' % (s_path_for_save, dir_specifier_name))
-f_gr.savefig('%s%s_gr_statistic.png' % (s_path_for_save, dir_specifier_name))
+if b_cascade:
+    s_corner_name = '%s%s_corner_plot.png' % (s_path_for_save, dir_specifier_name)
+    s_gr_name = '%s%s_gr_statistic.png' % (s_path_for_save, dir_specifier_name)
+else:
+    s_corner_name = '%s%s_corner_plot_gm.png' % (s_path_for_save, dir_specifier_name)
+    s_gr_name = '%s%s_gr_statistic_gm.png' % (s_path_for_save, dir_specifier_name)
+
+fig.savefig(s_corner_name)
+f_gr.savefig(s_gr_name)
 
 
 

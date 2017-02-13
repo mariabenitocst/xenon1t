@@ -21,10 +21,14 @@ root_file = File(s_data_path)
 channel = 16
 parameter_to_draw = 'SingleIntegral[%d]' % (channel)
 
+print
+
 a_integral = root_numpy.tree2array(root_file.T0, branches=parameter_to_draw)
 a_integral = np.asarray(a_integral)
 
+num_to_choose = int(len(a_integral)*0.2)
+
 data_dir = './data/'
 
-pickle.dump(a_integral, open('%s%s.p' % (data_dir, filename), 'w'))
+pickle.dump(np.random.choice(a_integral, num_to_choose), open('%s%s.p' % (data_dir, filename), 'w'))
 

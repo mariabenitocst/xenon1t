@@ -33,21 +33,16 @@ from pycuda.compiler import SourceModule
 import pycuda.driver as drv
 import pycuda.tools
 import pycuda.gpuarray
-import pycuda.autoinit
+#import pycuda.autoinit
+
+import atexit
 
 from sklearn import neighbors
 from sklearn import grid_search
 from sklearn import preprocessing
 
 
-gpu_cascade_model = SourceModule(cuda_pmt_mc.cuda_pmt_mc, no_extern_c=True).get_function('cascade_pmt_model')
-gpu_pure_cascade_spectrum = SourceModule(cuda_pmt_mc.cuda_pmt_mc, no_extern_c=True).get_function('pure_cascade_spectrum')
-gpu_fixed_pe_cascade_spectrum = SourceModule(cuda_pmt_mc.cuda_pmt_mc, no_extern_c=True).get_function('fixed_pe_cascade_spectrum')
-setup_kernel = SourceModule(cuda_pmt_mc.cuda_pmt_mc, no_extern_c=True).get_function('setup_kernel')
 
-gpu_gaussian_model = SourceModule(cuda_pmt_mc.cuda_pmt_mc, no_extern_c=True).get_function('gaussian_pmt_model')
-gpu_pure_gaussian_spectrum = SourceModule(cuda_pmt_mc.cuda_pmt_mc, no_extern_c=True).get_function('pure_gaussian_spectrum')
-gpu_fixed_pe_gaussian_spectrum = SourceModule(cuda_pmt_mc.cuda_pmt_mc, no_extern_c=True).get_function('fixed_pe_gaussian_spectrum')
 
 def weighted_avg_and_std(values, weights):
     """
@@ -66,7 +61,8 @@ def reduce_method(m):
 
 
 def array_poisson_binned_likelihood(a_model, a_data):
-    return a_data*np.log(a_model) - a_model - (a_data*np.log(a_data) - a_data + 0.5*np.log(a_data))
+    return a_data*np.log(a_model) - a_model - (a_data*np.log(a_data) - a_data + 0.5*np.log(2*np.pi*a_data))
+    #return -np.log(a_data**0.5) - 0.5*np.log(2*np.pi) - 0.5*(a_data - a_model)**2/a_data
 
 
 
@@ -82,7 +78,7 @@ def poisson_binned_likelihood(a_model, a_data):
 
 
 class fit_pmt_gain(object):
-    def __init__(self, filename, run=16, channel_number=17, num_mc_events=1e6, num_loops=1, b_making_comparison_plots=False, b_use_cascade_model=True):
+    def __init__(self, filename, gpu_number=0, run=16, channel_number=17, num_mc_events=1e6, num_loops=1, b_making_comparison_plots=False, b_use_cascade_model=True):
     
     
 
@@ -95,6 +91,26 @@ class fit_pmt_gain(object):
         self.num_hist_events = int(5e5)
         # num_electrons = num_count_samples * (1/frequency_digitizer) * (1/impedance) * (1/external_gain) * (1/charge_of_electron) * (dynamic_voltage_range/2**num_bits)
         self.conversion_to_num_electrons = 1./(250e6)/50./10./1.6e-19*2./2**12
+        
+        
+        # start GPU
+        drv.init()
+        dev = drv.Device(gpu_number)
+        ctx = dev.make_context()
+        
+        print '\nDevice Number: %d' % (gpu_number)
+        print 'Device Name: %s\n' % (dev.name())
+        
+        atexit.register(ctx.pop)
+        
+        self.gpu_cascade_model = SourceModule(cuda_pmt_mc.cuda_pmt_mc, no_extern_c=True).get_function('cascade_pmt_model')
+        self.gpu_pure_cascade_spectrum = SourceModule(cuda_pmt_mc.cuda_pmt_mc, no_extern_c=True).get_function('pure_cascade_spectrum')
+        self.gpu_fixed_pe_cascade_spectrum = SourceModule(cuda_pmt_mc.cuda_pmt_mc, no_extern_c=True).get_function('fixed_pe_cascade_spectrum')
+        self.setup_kernel = SourceModule(cuda_pmt_mc.cuda_pmt_mc, no_extern_c=True).get_function('setup_kernel')
+
+        self.gpu_gaussian_model = SourceModule(cuda_pmt_mc.cuda_pmt_mc, no_extern_c=True).get_function('gaussian_pmt_model')
+        self.gpu_pure_gaussian_spectrum = SourceModule(cuda_pmt_mc.cuda_pmt_mc, no_extern_c=True).get_function('pure_gaussian_spectrum')
+        self.gpu_fixed_pe_gaussian_spectrum = SourceModule(cuda_pmt_mc.cuda_pmt_mc, no_extern_c=True).get_function('fixed_pe_gaussian_spectrum')
         
         
         self.num_mc_events = int(num_mc_events)
@@ -114,7 +130,7 @@ class fit_pmt_gain(object):
         
         seed = int(time.time())
         self.rng_states = drv.mem_alloc(self.num_mc_events*pycuda.characterize.sizeof('curandStateXORWOW', '#include <curand_kernel.h>'))
-        setup_kernel(np.int32(self.num_mc_events), self.rng_states, np.uint64(seed), np.uint64(0), **self.d_gpu_scale)
+        self.setup_kernel(np.int32(self.num_mc_events), self.rng_states, np.uint64(seed), np.uint64(0), **self.d_gpu_scale)
         print 'Cuda random states setup...\n'
         
         self.filename = filename
@@ -147,42 +163,38 @@ class fit_pmt_gain(object):
             self.file_identifier = self.filename
         
         num_bins_uc = 150
-        num_bins_nerix = 50
+        num_bins_nerix = 100
 
         if b_use_cascade_model:
             if self.file_identifier == '0062_0061':
                 self.d_fit_files['settings'] = [num_bins_uc, -1e6, 2e7]
                 self.a_free_par_guesses = [9.70436881e-01, 5.37952400e+00, 2.62537293e-01, 6.76344609e-01, -4.26693497e+04, 2.49885801e+05, 3.70290616e+05, 3.88879792e-01, 1.13371514e+00, 1.00044607e+00]
-                #self.a_free_par_guesses = [0.936, 5.01, 0.732, 4.37e4, 3.05e5, 1.17, 1.000]
             
             elif self.file_identifier == '0066_0065':
                 self.d_fit_files['settings'] = [num_bins_uc, -1e6, 1.2e7]
                 self.a_free_par_guesses = [9.98953107e-01, 4.49066329e+00, 2.88433036e-01, 7.77393348e-01, -6.23872943e+03, 2.64849398e+05, 8.97593767e+05, 1.89651764e-01, 1.03030851e+00, 1.00633986e+00] # minimizer cascade fit
-                #self.a_free_par_guesses = [9.97386814e-01, 4.48651876e+00, 2.84227949e-01, 7.77745677e-01, -9.49235303e+03, 2.63017636e+05, 8.95144231e+05, 1.90758845e-01, 1.03269660e+00, 1.00100212e+00] # mcmc cascade fit
-                #self.a_free_par_guesses = [0.999, 5.00, 0.7029, 2.055e3, 2.68e5, 4.00e5, 0.140, 1.1027]
-                
+            
             elif self.file_identifier == '0067_0068':
                 self.d_fit_files['settings'] = [num_bins_uc, -1e6, 7.5e6]
                 self.a_free_par_guesses = [9.76210691e-01, 4.41228233e+00, 2.66769335e-01, 7.54360162e-01, -4.84476980e+03, 2.61980430e+05, 1.66036440e+06, 1.23714517e-01, 1.03794822e+00, 1.00197087e+00]
-                #self.a_free_par_guesses = [0.9951, 4.082, 0.8275, 1.225e3, 2.64e5, 1.878e6, 0.187, 0.972]
-                
+            
             elif self.file_identifier == '0071_0072':
                 self.d_fit_files['settings'] = [num_bins_uc, -1e6, 3.4e7]
                 self.a_free_par_guesses = [9.67726706e-01, 5.39970350e+00, 2.69033760e-01, 7.01130155e-01, -5.83573467e+04, 2.44553910e+05, 5.59609629e+05, 4.07751292e-01, 1.11984571e+00, 1.00314067e+00]
-                #self.a_free_par_guesses = [0.92, 5.10, 0.750, 5.71e4, 3.22e5, 1.19, 0.992]
             
             elif self.file_identifier == '0073_0074':
                 self.d_fit_files['settings'] = [num_bins_uc, -1e6, 4.2e7]
                 self.a_free_par_guesses = [9.58882064e-01, 4.66916003e+00, 7.25141044e-01, 8.16462800e-01, -7.85751104e+04, 2.42959981e+05, 6.64654589e+05, 6.08174500e-01, 1.97596250e+00, 1.00415859e+00]
-                #self.a_free_par_guesses = [0.982, 5.028, 0.76, 2.19e4, 2.84e5, 6.67e5, 0.193, 2.]
 
             elif self.file_identifier == 'nerix_160418_1523':
                 self.d_fit_files['settings'] = [num_bins_nerix, -5e5, 3.e6]
-                self.a_free_par_guesses = [0.834, 14.25, 0.0157, 0.220, 5.55e4, 2.21e5, 1.33, 1.00]
+                # 439.9
+                self.a_free_par_guesses = [8.76119871e-01, 8.13698493e+05, 6.38497286e+05, 3.05483826e+05, 1.77574819e+05, 7.84658898e+04, 2.15749249e+05, 1.39179958e+00, 9.94824342e-01]
 
             elif self.file_identifier == 'nerix_160418_1531':
                 self.d_fit_files['settings'] = [num_bins_nerix, -5e5, 4.e6]
-                self.a_free_par_guesses = [0.876, 9.44, 0.335, 9.25e4, 2.30e5, 2.354, 1.000]
+                # 446.2
+                self.a_free_par_guesses = [9.46284674e-01, 1.50034713e+01, 1.37821848e+00, 2.08031481e-01, 9.14216492e+04, 2.30741466e+05, 1.83586129e+06, 4.01235507e-01, 1.87723373e+00, 9.95802364e-01]
             
             else:
                 print '\n\nSettings do not exist for given setup: %s\n\n' % (self.file_identifier)
@@ -192,33 +204,37 @@ class fit_pmt_gain(object):
         else:
             if self.file_identifier == '0062_0061':
                 self.d_fit_files['settings'] = [num_bins_uc, -1e6, 2e7]
-                #self.a_free_par_guesses = [0.999, 3.65e6, 1.12e6, 8e5, 4e5, -6.2e3, 2.6e5, 9e5, 0.19, 1.03, 1.0]
+                # 440.0
+                self.a_free_par_guesses = [9.46698500e-01, 6.09694766e+06, 1.74701084e+06, 4.97222347e+05, 1.52284718e+05, -1.66308634e+04, 2.57703988e+05, 1.59093527e+06, 1.94871523e-01, 1.08220355e+00, 9.88975580e-01]
             
             elif self.file_identifier == '0066_0065':
                 self.d_fit_files['settings'] = [num_bins_uc, -1e6, 1.2e7]
-                self.a_free_par_guesses = [9.61385512e-01, 3.69494478e+06, 1.03840801e+06, 4.62453082e+05, 6.85149465e+04, -1.35201710e+04, 2.59391073e+05, 1.43438032e+06, 1.88682564e-01, 1.04119963e+00, 1.00178339e+00]
-                #self.a_free_par_guesses = [0.999, 3.65e6, 1.12e6, 8e5, 4e5, -6.2e3, 2.6e5, 9e5, 0.19, 1.03, 1.0]
+                # 426.0
+                self.a_free_par_guesses = [8.90629655e-01, 3.68096586e+06, 1.06290061e+06, 2.83696494e+05, 3.68362085e+04, -4.19238660e+04, 2.50884073e+05, 1.00682079e+06, 2.03956190e-01, 1.16240563e+00, 9.97050079e-01]
                 
             elif self.file_identifier == '0067_0068':
                 self.d_fit_files['settings'] = [num_bins_uc, -1e6, 7.5e6]
-                self.a_free_par_guesses = [9.00058211e-01, 2.10482789e+06, 7.01929926e+05, 2.39265011e+05, 7.77018801e+04, -2.14323563e+04, 2.59593678e+05, 9.33303513e+05, 2.59302227e-02, 1.20667690e+00, 1.01020478e+00]
+                # 426.5
+                self.a_free_par_guesses = [9.61124179e-01, 2.14310745e+06, 5.79960425e+05, 1.63233242e+05, 1.46376177e+05, -1.73022294e+04, 2.61566943e+05, 1.57594552e+06, 2.43062053e-01, 9.61973526e-01, 1.00461595e+00]
                 
             elif self.file_identifier == '0071_0072':
                 self.d_fit_files['settings'] = [num_bins_uc, -1e6, 3.4e7]
-                #self.a_free_par_guesses = [0.999, 3.65e6, 1.12e6, 8e5, 4e5, -6.2e3, 2.6e5, 9e5, 0.19, 1.03, 1.0]
+                # 434.3
+                self.a_free_par_guesses = [9.03778772e-01, 9.56583607e+06, 2.82327477e+06, 6.47911514e+05, 2.54586879e+05, -3.49842724e+04, 2.56078021e+05, 1.90023783e+06, 1.88001778e-01, 1.18293821e+00, 1.00535884e+00]
             
             elif self.file_identifier == '0073_0074':
                 self.d_fit_files['settings'] = [num_bins_uc, -1e6, 4.2e7]
-                #self.a_free_par_guesses = [0.999, 3.65e6, 1.12e6, 8e5, 4e5, -6.2e3, 2.6e5, 9e5, 0.19, 1.03, 1.0]
+                # 443.5
+                self.a_free_par_guesses = [9.33094883e-01, 9.60581331e+06, 2.85937817e+06, 6.84171162e+05, 1.72114602e+05, -2.25406141e+04, 2.68510226e+05, 1.84902579e+06, 3.14771847e-01, 2.02629079e+00, 1.01008279e+00]
 
 
             elif self.file_identifier == 'nerix_160418_1523':
                 self.d_fit_files['settings'] = [num_bins_nerix, -5e5, 3.e6]
-                #self.a_free_par_guesses = [0.999, 3.65e6, 1.12e6, 8e5, 4e5, -6.2e3, 2.6e5, 9e5, 0.19, 1.03, 1.0]
+                self.a_free_par_guesses = [8.52875320e-01, 8.82719771e+05, 5.60471194e+05, 3.44607199e+05, 6.98028856e+04, 6.48546405e+04, 2.16622010e+05, 1.29856464e+00, 9.98658014e-01]
 
             elif self.file_identifier == 'nerix_160418_1531':
                 self.d_fit_files['settings'] = [num_bins_nerix, -5e5, 4.e6]
-                #self.a_free_par_guesses = [0.999, 3.65e6, 1.12e6, 8e5, 4e5, -6.2e3, 2.6e5, 9e5, 0.19, 1.03, 1.0]
+                self.a_free_par_guesses = [8.52476152e-01, 8.42034388e+05, 5.92178059e+05, 3.06834014e+05, 1.51272023e+05, 6.98304733e+04, 1.85317018e+05,   2.62942854e+00, 1.00335344e+00]
             
             
             else:
@@ -231,34 +247,28 @@ class fit_pmt_gain(object):
         self.d_best_fit_pars = {}
         # this is reserved for MCMC fitting only!
         if self.file_identifier == '0062_0061':
-            #self.d_best_fit_pars['cascade'] =
-            #self.d_best_fit_pars['gaussian'] =
-            pass
-            
+            self.d_best_fit_pars['cascade'] = [9.81146126e-01, 5.40947111e+00, 2.52369151e-01, 6.72438049e-01, -4.19711500e+04, 2.51571426e+05, 3.68948505e+05, 4.22860170e-01, 1.11285778e+00, 9.94857401e-01]
+            self.d_best_fit_pars['gaussian'] = [9.15639072e-01, 6.07481864e+06, 1.73790974e+06, 4.94929615e+05, 1.65520928e+05, -6.46191338e+03, 2.66367849e+05, 3.69658200e+06, 1.95764714e-01, 1.07746364e+00, 1.00359864e+00]
+
         elif self.file_identifier == '0066_0065':
-            self.d_best_fit_pars['cascade'] = [9.97386814e-01, 4.48651876e+00, 2.84227949e-01, 7.77745677e-01, -9.49235303e+03, 2.63017636e+05, 8.95144231e+05, 1.90758845e-01, 1.03269660e+00, 1.00100212e+00]
-            self.d_best_fit_pars['gaussian'] = [9.61385512e-01, 3.69494478e+06, 1.03840801e+06, 4.62453082e+05, 6.85149465e+04, -1.35201710e+04, 2.59391073e+05, 1.43438032e+06, 1.88682564e-01, 1.04119963e+00, 1.00178339e+00]
-            print 'Using non-MCMC results as a test!\n\n\n'
-            
+            self.d_best_fit_pars['cascade'] = [9.98905627e-01, 4.47670769e+00, 2.76263958e-01, 7.78904406e-01, -5.34433422e+03, 2.64088955e+05, 1.05676578e+06, 1.86955078e-01, 1.01766155e+00, 1.00537587e+00]
+            self.d_best_fit_pars['gaussian'] = [8.11952241e-01, 3.72516032e+06, 1.03212926e+06, 2.15119384e+05, 8.67855816e+04, -3.28750215e+04, 2.57289578e+05, 2.12423687e+06, 2.22497151e-01, 1.17461344e+00, 1.00771669e+00]
+
         elif self.file_identifier == '0067_0068':
-            self.d_best_fit_pars['cascade'] = [9.76210691e-01, 4.41228233e+00, 2.66769335e-01, 7.54360162e-01, -4.84476980e+03, 2.61980430e+05, 1.66036440e+06, 1.23714517e-01, 1.03794822e+00, 1.00197087e+00]
-            self.d_best_fit_pars['gaussian'] = [9.00058211e-01, 2.10482789e+06, 7.01929926e+05, 2.39265011e+05, 7.77018801e+04, -2.14323563e+04, 2.59593678e+05, 9.33303513e+05, 2.59302227e-02, 1.20667690e+00, 1.01020478e+00]
-            print 'Using non-MCMC results as a test!\n\n\n'
+            self.d_best_fit_pars['cascade'] = [9.51818339e-01, 4.45250458e+00, 2.96226888e-01, 7.48076067e-01, 1.56845841e+03, 2.63107563e+05, 5.24426303e+06, 3.19981362e-02, 1.12545016e+00, 1.00290377e+00]
+            self.d_best_fit_pars['gaussian'] = [8.60300909e-01, 2.15556289e+06, 6.59909364e+05, 4.37469931e+05, 1.81914199e+05, -3.75955847e+04, 2.48098736e+05, 1.21893581e+14, 3.81576042e-01, 1.22348133e+00, 9.99881921e-01]
 
         elif self.file_identifier == '0071_0072':
-            #self.d_best_fit_pars['cascade'] =
-            #self.d_best_fit_pars['gaussian'] =
-            pass
-        
+            self.d_best_fit_pars['cascade'] = [9.71571418e-01, 5.42423905e+00, 3.04105175e-01, 6.98151402e-01, -5.74915982e+04, 2.48901917e+05, 5.71814914e+05, 3.94784908e-01, 1.12819261e+00, 1.00058909e+00]
+            self.d_best_fit_pars['gaussian'] = [8.14160071e-01, 9.76372366e+06, 2.57096095e+06, 5.01718955e+05, 3.27214169e+05, -3.43212247e+04, 2.49691021e+05, 7.30020339e+06, 2.58181493e-01, 1.08245261e+00, 1.00762236e+00]
+
         elif self.file_identifier == '0073_0074':
-            #self.d_best_fit_pars['cascade'] =
-            #self.d_best_fit_pars['gaussian'] =
-            pass
+            self.d_best_fit_pars['cascade'] = [9.65914633e-01, 4.60842215e+00, 7.12215626e-01, 8.26338609e-01, -6.33565829e+04, 2.52573114e+05, 7.39681938e+05, 5.86389254e-01, 1.98161121e+00, 1.00231835e+00]
+            self.d_best_fit_pars['gaussian'] = [8.21911297e-01, 9.61425494e+06, 2.54312053e+06, 6.05214109e+05, 4.12606210e+05, -1.75876753e+04, 2.56428312e+05, 9.73645182e+06, 4.04457241e-01, 1.95051778e+00, 1.00254052e+00]
 
         elif self.file_identifier == 'nerix_160418_1523':
             #self.d_best_fit_pars['cascade'] =
-            #self.d_best_fit_pars['gaussian'] =
-            pass
+            self.d_best_fit_pars['gaussian'] = [7.21372889e-01, 9.85172045e+05, 4.88673583e+05, 3.05606474e+05, 2.08713927e+05, 6.82181423e+04, 2.19043515e+05, 1.31150122e+00, 9.94787066e-01]
 
         elif self.file_identifier == 'nerix_160418_1531':
             #self.d_best_fit_pars['cascade'] =
@@ -337,6 +347,12 @@ class fit_pmt_gain(object):
         ln_prior += self.prior_greater_than_0(bkg_exp)
         ln_prior += self.prior_between_0_and_1(prob_exp_bkg)
 
+        approximate_spe_mean = (mean_e_from_dynode*probability_electron_ionized)**12.
+        #print approximate_spe_mean
+
+        if bkg_exp > approximate_spe_mean:
+            return -np.inf
+
         if not np.isfinite(ln_prior):
             return -np.inf
 
@@ -362,7 +378,7 @@ class fit_pmt_gain(object):
     
     
         #start_time_mpe1 = time.time()
-        gpu_cascade_model(*l_args_gpu, **self.d_gpu_scale)
+        self.gpu_cascade_model(*l_args_gpu, **self.d_gpu_scale)
         #print 'Time for MPE1 call: %f s' % (time.time() - start_time_spe)
         a_model = np.asarray(a_hist, dtype=np.float32)*np.sum(self.d_fit_files['hist'])/np.sum(a_hist)*scale_par
 
@@ -504,6 +520,7 @@ class fit_pmt_gain(object):
         bkg_exp = np.asarray(bkg_exp, dtype=np.float32)
         prob_exp_bkg = np.asarray(prob_exp_bkg, dtype=np.float32)
         
+        
         num_bins = np.asarray(len(self.d_fit_files['hist']), dtype=np.int32)
         bin_edges = np.asarray(self.d_fit_files['bin_edges'], dtype=np.float32)
         
@@ -512,7 +529,7 @@ class fit_pmt_gain(object):
     
     
         #start_time_mpe1 = time.time()
-        gpu_cascade_model(*l_args_gpu, **self.d_gpu_scale)
+        self.gpu_cascade_model(*l_args_gpu, **self.d_gpu_scale)
         #print 'Time for MPE1 call: %f s' % (time.time() - start_time_spe)
         a_model = np.asarray(a_hist, dtype=np.float32)*np.sum(self.d_fit_files['hist'])/np.sum(a_hist)*scale_par
         
@@ -591,12 +608,21 @@ class fit_pmt_gain(object):
                 spe_std = a_sampler[i][2]
                 under_amp_mean = a_sampler[i][3]
                 under_amp_std = a_sampler[i][4]
-                bkg_mean = a_sampler[i][5]
-                bkg_std = a_sampler[i][6]
-                bkg_exp = a_sampler[i][7]
-                prob_exp_bkg = a_sampler[i][8]
-                mean_num_pe = a_sampler[i][9]
-                scale_par = a_sampler[i][10]
+                
+                if not self.file_identifier[:5] == 'nerix':
+                    bkg_mean = a_sampler[i][5]
+                    bkg_std = a_sampler[i][6]
+                    bkg_exp = a_sampler[i][7]
+                    prob_exp_bkg = a_sampler[i][8]
+                    mean_num_pe = a_sampler[i][9]
+                    scale_par = a_sampler[i][10]
+                else:
+                    bkg_mean = a_sampler[i][5]
+                    bkg_std = a_sampler[i][6]
+                    bkg_exp = 1
+                    prob_exp_bkg = 0.0001
+                    mean_num_pe = a_sampler[i][7]
+                    scale_par = a_sampler[i][8]
             
             
             
@@ -631,10 +657,10 @@ class fit_pmt_gain(object):
             
             if self.b_use_cascade_model:
                 l_args_gpu = [self.rng_states, drv.In(num_trials), drv.In(self.num_loops), drv.InOut(a_hist), drv.In(mean_num_pe), drv.In(prob_hit_first), drv.In(mean_e_from_dynode), drv.In(width_e_from_dynode), drv.In(probability_electron_ionized), drv.In(bkg_mean), drv.In(bkg_std), drv.In(bkg_exp), drv.In(prob_exp_bkg), drv.In(num_bins), drv.In(bin_edges)]
-                gpu_cascade_model(*l_args_gpu, **self.d_gpu_scale)
+                self.gpu_cascade_model(*l_args_gpu, **self.d_gpu_scale)
             else:
                 l_args_gpu = [self.rng_states, drv.In(num_trials), drv.In(self.num_loops), drv.InOut(a_hist), drv.In(mean_num_pe), drv.In(prob_hit_first), drv.In(spe_mean), drv.In(spe_std), drv.In(under_amp_mean), drv.In(under_amp_std), drv.In(bkg_mean), drv.In(bkg_std), drv.In(bkg_exp), drv.In(prob_exp_bkg), drv.In(num_bins), drv.In(bin_edges)]
-                gpu_gaussian_model(*l_args_gpu, **self.d_gpu_scale)
+                self.gpu_gaussian_model(*l_args_gpu, **self.d_gpu_scale)
 
         
             #start_time_mpe1 = time.time()
@@ -648,10 +674,10 @@ class fit_pmt_gain(object):
             # gather inputs for pure spec
             if self.b_use_cascade_model:
                 l_pure_spec = [self.rng_states, drv.In(num_trials), drv.InOut(a_hist_pure), drv.In(np.asarray(1, dtype=np.int32)), drv.In(mean_e_from_dynode), drv.In(width_e_from_dynode), drv.In(probability_electron_ionized), drv.In(num_bins), drv.In(bin_edges)]
-                gpu_pure_cascade_spectrum(*l_pure_spec, **self.d_gpu_scale)
+                self.gpu_pure_cascade_spectrum(*l_pure_spec, **self.d_gpu_scale)
             else:
                 l_pure_spec = [self.rng_states, drv.In(num_trials), drv.InOut(a_hist_pure), drv.In(np.asarray(1, dtype=np.int32)), drv.In(spe_mean), drv.In(spe_std), drv.In(num_bins), drv.In(bin_edges)]
-                gpu_pure_gaussian_spectrum(*l_pure_spec, **self.d_gpu_scale)
+                self.gpu_pure_gaussian_spectrum(*l_pure_spec, **self.d_gpu_scale)
 
             
             
@@ -762,7 +788,7 @@ class fit_pmt_gain(object):
 
 
 
-    def draw_model_fit_with_peaks(self, num_walkers, num_steps_to_include):
+    def draw_model_fit_with_peaks(self, num_walkers, num_steps_to_include, num_steps_to_pull_from=1000):
         
         num_dim =len(self.a_free_par_guesses)
         
@@ -814,11 +840,17 @@ class fit_pmt_gain(object):
         
         max_num_events_for_kde = 5e4
         assert num_steps_to_include*num_walkers < max_num_events_for_kde, 'Using KDE to estimate maximum in full space so must use less than %d events for time constraints.\n' % (int(max_num_events_for_kde))
-        a_sampler = a_sampler[:, -num_steps_to_include:, :].reshape((-1, num_dim))
+        
+        a_sampler = a_sampler.reshape(-1, num_dim)
+        total_length_sampler = a_sampler.shape[0]
+        a_partial_sampler = np.zeros((num_steps_to_include*num_walkers, num_dim))
+        for i in tqdm.tqdm(xrange(num_steps_to_include*num_walkers)):
+            a_partial_sampler[i, :] = a_sampler[(-(np.random.randint(1, num_steps_to_pull_from*num_walkers) % total_length_sampler)), :]
+        #a_partial_sampler = a_sampler[:, -num_steps_to_include:, :].reshape((-1, num_dim))
         
         scaler = preprocessing.StandardScaler()
-        scaler.fit(a_sampler)
-        a_scaled_samples = scaler.transform(a_sampler)
+        scaler.fit(a_partial_sampler)
+        a_scaled_samples = scaler.transform(a_partial_sampler)
 
         #print a_sampler[:,1:3]
         #print a_scaled_samples
@@ -850,7 +882,12 @@ class fit_pmt_gain(object):
         if self.b_use_cascade_model:
             prob_hit_first, mean_e_from_dynode, width_e_from_dynode, probability_electron_ionized, bkg_mean, bkg_std, bkg_exp, prob_exp_bkg, mean_num_pe, scale_par = result.x
         else:
-            prob_hit_first, spe_mean, spe_std, under_amp_mean, under_amp_std, bkg_mean, bkg_std, bkg_exp, prob_exp_bkg, mean_num_pe, scale_par = result.x
+            if not self.file_identifier[:5] == 'nerix':
+                prob_hit_first, spe_mean, spe_std, under_amp_mean, under_amp_std, bkg_mean, bkg_std, bkg_exp, prob_exp_bkg, mean_num_pe, scale_par = result.x
+            else:
+                prob_hit_first, spe_mean, spe_std, under_amp_mean, under_amp_std, bkg_mean, bkg_std, mean_num_pe, scale_par = result.x
+                bkg_exp = 1
+                prob_exp_bkg = 0.0001
         
 
         l_hists = [np.zeros(len(self.d_fit_files['bin_centers_plots']), dtype=np.float32) for i in xrange(len(l_num_pe))]
@@ -892,10 +929,10 @@ class fit_pmt_gain(object):
         
             if self.b_use_cascade_model:
                 l_args_gpu = [self.rng_states, drv.In(num_trials), drv.In(self.num_loops), drv.InOut(current_hist), drv.In(num_pe), drv.In(prob_hit_first), drv.In(mean_e_from_dynode), drv.In(width_e_from_dynode), drv.In(probability_electron_ionized), drv.In(bkg_mean), drv.In(bkg_std), drv.In(bkg_exp), drv.In(prob_exp_bkg), drv.In(num_bins), drv.In(bin_edges)]
-                gpu_fixed_pe_cascade_spectrum(*l_args_gpu, **self.d_gpu_scale)
+                self.gpu_fixed_pe_cascade_spectrum(*l_args_gpu, **self.d_gpu_scale)
             else:
                 l_args_gpu = [self.rng_states, drv.In(num_trials), drv.In(self.num_loops), drv.InOut(current_hist), drv.In(num_pe), drv.In(prob_hit_first), drv.In(spe_mean), drv.In(spe_std), drv.In(under_amp_mean), drv.In(under_amp_std), drv.In(bkg_mean), drv.In(bkg_std), drv.In(bkg_exp), drv.In(prob_exp_bkg), drv.In(num_bins), drv.In(bin_edges)]
-                gpu_fixed_pe_gaussian_spectrum(*l_args_gpu, **self.d_gpu_scale)
+                self.gpu_fixed_pe_gaussian_spectrum(*l_args_gpu, **self.d_gpu_scale)
             
             
             
@@ -942,7 +979,7 @@ class fit_pmt_gain(object):
     
     
         #start_time_mpe1 = time.time()
-        gpu_cascade_model(*l_args_gpu, **self.d_gpu_scale)
+        self.gpu_cascade_model(*l_args_gpu, **self.d_gpu_scale)
         #print 'Time for MPE1 call: %f s' % (time.time() - start_time_spe)
         a_model = np.asarray(a_hist, dtype=np.float32)*np.sum(self.d_fit_files['hist'])/np.sum(a_hist)*self.d_fit_files['bin_width']/self.d_fit_files['bin_width_plots']*scale_par
 
@@ -959,7 +996,13 @@ class fit_pmt_gain(object):
     
     
     def gaussian_model_ln_likelihood(self, a_parameters):
-        prob_hit_first, spe_mean, spe_std, under_amp_mean, under_amp_std, bkg_mean, bkg_std, bkg_exp, prob_exp_bkg, mean_num_pe, scale_par = a_parameters
+        if not self.file_identifier[:5] == 'nerix':
+            prob_hit_first, spe_mean, spe_std, under_amp_mean, under_amp_std, bkg_mean, bkg_std, bkg_exp, prob_exp_bkg, mean_num_pe, scale_par = a_parameters
+        else:
+            # do not include exponential background for neriX
+            prob_hit_first, spe_mean, spe_std, under_amp_mean, under_amp_std, bkg_mean, bkg_std, mean_num_pe, scale_par = a_parameters
+            bkg_exp, prob_exp_bkg = 1, 0.0001
+        
 
         ln_prior = 0
         ln_likelihood = 0
@@ -974,9 +1017,30 @@ class fit_pmt_gain(object):
         ln_prior += self.prior_greater_than_0(bkg_exp)
         ln_prior += self.prior_between_0_and_1(prob_exp_bkg)
         
+        
+        
+        if self.file_identifier[:5] == 'nerix':
+            if spe_mean > 1.1e6 or spe_mean < 7e5:
+                return -np.inf
+            if spe_std < 4e5 or spe_std > 6.5e5:
+                return -np.inf
+            if prob_hit_first < 0.45:
+                return -np.inf
+            if spe_std > 1.0*spe_mean:
+                return -np.inf
+        
+        else:
+            if bkg_exp > spe_mean:
+                return -np.inf
+
+        
+        if mean_num_pe < 1.:
+            return -np.inf
+        
+        
         # under amplified peak should be
         # ~1/num_dynodes=1/12 of SPE but gave buffer
-        if under_amp_mean > 0.15*spe_mean or under_amp_std > under_amp_mean:
+        if under_amp_mean < 0.75*spe_mean**(11./12.) or under_amp_mean > 1.25*spe_mean**(11./12.) or under_amp_std > under_amp_mean:
             return -np.inf
 
         if not np.isfinite(ln_prior):
@@ -1005,7 +1069,7 @@ class fit_pmt_gain(object):
     
     
         #start_time_mpe1 = time.time()
-        gpu_gaussian_model(*l_args_gpu, **self.d_gpu_scale)
+        self.gpu_gaussian_model(*l_args_gpu, **self.d_gpu_scale)
         #print 'Time for MPE1 call: %f s' % (time.time() - start_time_spe)
         a_model = np.asarray(a_hist, dtype=np.float32)*np.sum(self.d_fit_files['hist'])/np.sum(a_hist)*scale_par
 
@@ -1029,7 +1093,12 @@ class fit_pmt_gain(object):
     
     
     def draw_gaussian_model_fit(self, a_parameters):
-        prob_hit_first, spe_mean, spe_std, under_amp_mean, under_amp_std, bkg_mean, bkg_std, bkg_exp, prob_exp_bkg, mean_num_pe, scale_par = a_parameters
+        if not self.file_identifier[:5] == 'nerix':
+            prob_hit_first, spe_mean, spe_std, under_amp_mean, under_amp_std, bkg_mean, bkg_std, bkg_exp, prob_exp_bkg, mean_num_pe, scale_par = a_parameters
+        else:
+            # do not include exponential background for neriX
+            prob_hit_first, spe_mean, spe_std, under_amp_mean, under_amp_std, bkg_mean, bkg_std, mean_num_pe, scale_par = a_parameters
+            bkg_exp, prob_exp_bkg = 1, 0.
         
         
         a_hist = np.zeros(len(self.d_fit_files['hist']), dtype=np.float32)
@@ -1057,7 +1126,7 @@ class fit_pmt_gain(object):
     
     
         #start_time_mpe1 = time.time()
-        gpu_gaussian_model(*l_args_gpu, **self.d_gpu_scale)
+        self.gpu_gaussian_model(*l_args_gpu, **self.d_gpu_scale)
         #print 'Time for MPE1 call: %f s' % (time.time() - start_time_spe)
         a_model = np.asarray(a_hist, dtype=np.float32)*np.sum(self.d_fit_files['hist'])/np.sum(a_hist)*scale_par
         
@@ -1076,7 +1145,7 @@ class fit_pmt_gain(object):
 
 
 
-    def testing_model_significance(self, a_pars_cascade, a_pars_gaussian):
+    def testing_model_significance(self, a_pars_cascade, a_pars_gaussian, b_signal_only=False):
     
         # cascade fitting
         prob_hit_first, mean_e_from_dynode, width_e_from_dynode, probability_electron_ionized, bkg_mean, bkg_std, bkg_exp, prob_exp_bkg, mean_num_pe, scale_par = a_pars_cascade
@@ -1104,7 +1173,7 @@ class fit_pmt_gain(object):
         l_args_gpu_cascade = [self.rng_states, drv.In(num_trials), drv.In(self.num_loops), drv.InOut(a_hist_cascade), drv.In(mean_num_pe), drv.In(prob_hit_first), drv.In(mean_e_from_dynode), drv.In(width_e_from_dynode), drv.In(probability_electron_ionized), drv.In(bkg_mean), drv.In(bkg_std), drv.In(bkg_exp), drv.In(prob_exp_bkg), drv.In(num_bins), drv.In(bin_edges)]
     
     
-        gpu_cascade_model(*l_args_gpu_cascade, **self.d_gpu_scale)
+        self.gpu_cascade_model(*l_args_gpu_cascade, **self.d_gpu_scale)
         a_model_cascade = np.asarray(a_hist_cascade, dtype=np.float32)*np.sum(self.d_fit_files['hist'])/np.sum(a_hist_cascade)*scale_par
     
     
@@ -1136,8 +1205,42 @@ class fit_pmt_gain(object):
         
         l_args_gpu_gaussian = [self.rng_states, drv.In(num_trials), drv.In(self.num_loops), drv.InOut(a_hist_gaussian), drv.In(mean_num_pe), drv.In(prob_hit_first), drv.In(spe_mean), drv.In(spe_std), drv.In(under_amp_mean), drv.In(under_amp_std), drv.In(bkg_mean), drv.In(bkg_std), drv.In(bkg_exp), drv.In(prob_exp_bkg), drv.In(num_bins), drv.In(bin_edges)]
     
-        gpu_gaussian_model(*l_args_gpu_gaussian, **self.d_gpu_scale)
+        self.gpu_gaussian_model(*l_args_gpu_gaussian, **self.d_gpu_scale)
         a_model_gaussian = np.asarray(a_hist_gaussian, dtype=np.float32)*np.sum(self.d_fit_files['hist'])/np.sum(a_hist_gaussian)*scale_par
+    
+    
+    
+    
+    
+        if b_signal_only:
+            print '\nUsing signal only!'
+            cutoff_value_bkg = bkg_mean + 5*bkg_std
+            for cutoff_index in xrange(num_bins):
+                print cutoff_value_bkg, bin_edges[cutoff_index]
+                if cutoff_value_bkg < bin_edges[cutoff_index]:
+                    break
+    
+            print 'Using last %d bins of %d.' % (num_bins-cutoff_index, num_bins)
+            
+            # correct number of bins in use
+            num_bins -= cutoff_index
+            
+        else:
+            print '\nUsing full spectrum!'
+            cutoff_index = 0
+    
+    
+        f_cascade_model_ln_likelihood = poisson_binned_likelihood(a_model_cascade[cutoff_index:], self.d_fit_files['hist'][cutoff_index:])
+        f_gaussian_model_ln_likelihood = poisson_binned_likelihood(a_model_gaussian[cutoff_index:], self.d_fit_files['hist'][cutoff_index:])
+    
+        reduced_chi2_cascade = np.sum((a_model_cascade[cutoff_index:] - self.d_fit_files['hist'][cutoff_index:])**2 / self.d_fit_files['hist'][cutoff_index:])
+        reduced_chi2_gaussian = np.sum((a_model_gaussian[cutoff_index:] - self.d_fit_files['hist'][cutoff_index:])**2 / self.d_fit_files['hist'][cutoff_index:])
+    
+        print '\nCascade Model Likelihood: %.2f' % (f_cascade_model_ln_likelihood)
+        print 'Cascade Model Chi^2 / NDF: %.2f / %d' % (reduced_chi2_cascade, num_bins-num_dim_cascade)
+        print 'Gaussian Model Likelihood: %.2f' % (f_gaussian_model_ln_likelihood)
+        print 'Gaussian Model Chi^2 / NDF: %.2f / %d\n' % (reduced_chi2_gaussian, num_bins-num_dim_gaussian)
+    
     
     
     
@@ -1145,11 +1248,11 @@ class fit_pmt_gain(object):
         # get summed likelihood and likelihood array for each
         # https://www.rochester.edu/college/psc/clarke/SDFT.pdf
         # cascade is f and gaussian is g
-        modified_lr = poisson_binned_likelihood(a_model_cascade, self.d_fit_files['hist']) - poisson_binned_likelihood(a_model_gaussian, self.d_fit_files['hist'])
+        modified_lr = f_cascade_model_ln_likelihood - f_gaussian_model_ln_likelihood
         modified_lr -= (num_dim_cascade/2. - num_dim_gaussian/2.) * np.log(num_bins)
     
-        a_ln_l_cascade = array_poisson_binned_likelihood(a_model_cascade, self.d_fit_files['hist'])
-        a_ln_l_gaussian = array_poisson_binned_likelihood(a_model_gaussian, self.d_fit_files['hist'])
+        a_ln_l_cascade = array_poisson_binned_likelihood(a_model_cascade[cutoff_index:], self.d_fit_files['hist'][cutoff_index:])
+        a_ln_l_gaussian = array_poisson_binned_likelihood(a_model_gaussian[cutoff_index:], self.d_fit_files['hist'][cutoff_index:])
     
         omega_squared = 1./num_bins*np.sum(np.log(a_ln_l_cascade/a_ln_l_gaussian)**2.) - (1./num_bins*np.sum(np.log(a_ln_l_cascade/a_ln_l_gaussian)))**2.
     
@@ -1207,16 +1310,18 @@ if __name__ == '__main__':
     #filename = 'nerix_160418_1523'
     #filename = 'nerix_160418_1531'
     
-    #filename = 'darkbox_spectra_0062_0061' #DE-ln(L) =
-    #filename = 'darkbox_spectra_0071_0072' # DE-ln(L) =
-    #filename = 'darkbox_spectra_0066_0065' # DE-ln(L) =
-    filename = 'darkbox_spectra_0067_0068' # DE-ln(L) =
-    #filename = 'darkbox_spectra_0073_0074' # DE-ln(L)  =
+    filename = 'darkbox_spectra_0062_0061'
+    #filename = 'darkbox_spectra_0066_0065'
+    #filename = 'darkbox_spectra_0067_0068'
+    #filename = 'darkbox_spectra_0071_0072'
+    #filename = 'darkbox_spectra_0073_0074'
+    
+    gpu_number = 0
   
-    num_mc_events = 1e4
-    num_loops = 50
+    num_mc_events = 5e6
+    num_loops = 4
   
-    test = fit_pmt_gain(filename, num_mc_events=num_mc_events, num_loops=num_loops, b_making_comparison_plots=True)
+    test = fit_pmt_gain(filename, gpu_number=gpu_number, num_mc_events=num_mc_events, num_loops=num_loops, b_making_comparison_plots=True)
 
     #test.draw_cascade_model_fit([9.70436881e-01, 5.37952400e+00, 2.62537293e-01, 6.76344609e-01, -4.26693497e+04, 2.49885801e+05, 3.70290616e+05, 3.88879792e-01, 1.13371514e+00, 1.00044607e+00])
     #print test.cascade_model_ln_likelihood(test.a_free_par_guesses)
@@ -1225,15 +1330,15 @@ if __name__ == '__main__':
     #test.draw_model_with_error_bands(num_walkers=64, num_steps_to_include=10)
     #test.draw_model_fit_with_peaks(num_walkers=64, num_steps_to_include=250)
 
-    #a_bounds = [(0.75, 1), (1, 8), (0.01, 1.5), (0, 1.0), (-1e5, 1e5), (5e4, 8e5), (1e4, 2e6), (0, 1), (0.6, 3.), (0.8, 1.2)]
+    #a_bounds = [(0.75, 1), (1, 40), (0.01, 1.5), (0, 0.5), (-1e5, 1e5), (5e4, 8e5), (1e4, 2e6), (0, 0.5), (0.6, 3.), (0.8, 1.2)]
     #test.differential_evolution_minimizer(a_bounds, maxiter=150, tol=0.05, popsize=20, polish=False)
 
-    #test.suppress_likelihood()
-    #test.run_mcmc(num_walkers=64, num_steps=50, threads=1)
+    test.suppress_likelihood()
+    test.run_mcmc(num_walkers=64, num_steps=1950, threads=1)
     
     
     
-    test = fit_pmt_gain(filename, num_mc_events=num_mc_events, num_loops=num_loops, b_making_comparison_plots=True, b_use_cascade_model=False)
+    #test = fit_pmt_gain(filename, gpu_number=gpu_number, num_mc_events=num_mc_events, num_loops=num_loops, b_making_comparison_plots=True, b_use_cascade_model=False)
     
     #print test.gaussian_model_ln_likelihood(test.a_free_par_guesses)
     #test.draw_gaussian_model_fit(test.a_free_par_guesses)
@@ -1241,18 +1346,21 @@ if __name__ == '__main__':
     #test.draw_model_with_error_bands(num_walkers=64, num_steps_to_include=10)
     #test.draw_model_fit_with_peaks(num_walkers=64, num_steps_to_include=250)
 
-    #a_bounds = [(0.75, 1), (1e6, 3e6), (7e5, 9e5), (1e4, 5e5), (1e3, 1.5e6), (-1e5, 1e5), (5e4, 8e5), (1e4, 2e6), (0, 1), (0.6, 3.), (0.8, 1.2)]
+    # uc
+    #a_bounds = [(0.85, 1), (5e5, 1.1e6), (5e5, 1e6), (1e5, 8e5), (1e3, 7e5), (-1e5, 1e5), (5e4, 8e5), (1e4, 2e6), (0, 0.45), (1., 3.), (0.8, 1.2)]
+    # nerix
+    #a_bounds = [(0.85, 1), (5e5, 1.1e6), (5e5, 1e6), (1e5, 8e5), (1e3, 7e5), (-1e5, 1e5), (5e4, 8e5), (1., 3.), (0.8, 1.2)]
     #test.differential_evolution_minimizer(a_bounds, maxiter=150, tol=0.05, popsize=20, polish=False)
 
-    test.suppress_likelihood()
-    #test.run_mcmc(num_walkers=64, num_steps=50, threads=1)
+    #test.suppress_likelihood()
+    #test.run_mcmc(num_walkers=64, num_steps=2000, threads=1)
 
 
 
 
 
 
-    #print test.testing_model_significance(test.d_best_fit_pars['cascade'], test.d_best_fit_pars['gaussian'])
+    #print test.testing_model_significance(test.d_best_fit_pars['cascade'], test.d_best_fit_pars['gaussian'], b_signal_only=False)
 
 
 
