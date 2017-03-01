@@ -3,27 +3,28 @@ import os.path
 path_to_this_module = os.path.dirname(__file__)
 results_directory_name = path_to_this_module + '/mcmc_analysis/mcmc_results_local'
 
-path_to_coincidence_data = '%s/../coincidence_analysis/results/' % (path_to_this_module)
-path_to_energy_spectra = '%s/simulated_data/' % (path_to_this_module)
-path_to_reduced_energy_spectra = '%s/reduced_simulation_data/' % (path_to_this_module)
+path_to_fit_inputs = '%s/fit_inputs/' % (path_to_this_module)
 
-l_energy_settings = [300, 0, 30]
+l_energy_settings = [300, 0, 70]
 
 num_bins = 40
-l_s1_settings = [num_bins, 0, 40]
-l_s2_settings = [num_bins, 0, 2000]
-l_log_settings = [num_bins, 1, 3.5]
+l_s1_settings = [num_bins, 4, 200]
+l_s2_settings = [num_bins, 40, 8000]
+l_log_settings = [num_bins, 0.5, 2.5]
 
 l_quantiles = [20, 80]
 
 l_allowed_degree_settings = [-4]
-l_allowed_cathode_settings = [0.345, 1.054, 2.356]
-l_allowed_anode_settings = [4.5]
+l_allowed_cathode_settings = [12.]
 
-self.d_cathode_voltages_to_field = {0.345:190,
-                                    1.054:490,
-                                    2.356:1020} # in kV:V/cm
+d_cathode_voltages_to_field = {12:120} # in kV:V/cm
 
+
+
+# detector paramaters
+max_r = 39.85 # 47.9 # cm
+min_z = -83.45 # -95
+max_z = -13.45 # -10
 
 
 # ------------------------------------------------
@@ -36,23 +37,23 @@ self.d_cathode_voltages_to_field = {0.345:190,
 w_value = 13.7
 w_value_uncertainty = 0.2
 
-g1_value = 0.117
-g1_uncertainty = 0.002
+g1_value = 0.152 #0.109
+g1_uncertainty = 0.004 #0.0035
 
-spe_res_value = 0.59
-spe_res_uncertainty = 0.0056
+spe_res_value = 0.363
+spe_res_uncertainty = 0.0001
 
 dpe_lb = 0.17
 dpe_ub = 0.24
 
-extraction_efficiency_value = 0.895
-extraction_efficiency_uncertainty = 0.002
+extraction_efficiency_value = 0.907
+extraction_efficiency_uncertainty = 0.013
 
-gas_gain_value = 21.2
-gas_gain_uncertainty = 0.04
+gas_gain_value = 11.80 #15.53
+gas_gain_uncertainty = 0.04 #2.25
 
-gas_gain_width = 8.01
-gas_gain_width_uncertainty = 0.29
+gas_gain_width = 3.73
+gas_gain_width_uncertainty = 0.0001
 
 l_means_pf_eff_pars = [3.09977598,  0.7398706]
 l_cov_matrix_pf_eff_pars = [[1.88474706e-04, 4.67178803e-06], [4.67178803e-06, 7.54638566e-05]]

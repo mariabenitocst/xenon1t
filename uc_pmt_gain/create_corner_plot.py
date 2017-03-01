@@ -55,7 +55,11 @@ else:
 
 
 if b_cascade:
-    l_free_pars = ['p_hit_first_dynode', 'mean_electrons_per_dynode', 'width_electrons_per_dynode', 'p_e_freed', 'bkg_mean', 'bkg_std', 'bkg_exp', 'prob_exp_bkg', 'mean_num_pe_mpe', 'scale_par']
+    if not filename[:5] == 'nerix':
+        l_free_pars = ['p_hit_first_dynode', 'mean_electrons_per_dynode', 'width_electrons_per_dynode', 'p_e_freed', 'bkg_mean', 'bkg_std', 'bkg_exp', 'prob_exp_bkg', 'mean_num_pe_mpe', 'scale_par']
+    else:
+        l_free_pars = ['p_hit_first_dynode', 'mean_electrons_per_dynode', 'width_electrons_per_dynode', 'p_e_freed', 'bkg_mean', 'bkg_std', 'mean_num_pe_mpe', 'scale_par']
+
 else:
     if not filename[:5] == 'nerix':
         l_free_pars = ['p_hit_first_dynode', 'spe_mean', 'spe_std', 'underamplified_mean', 'underamplified_std', 'bkg_mean', 'bkg_std', 'bkg_exp', 'prob_exp_bkg', 'mean_num_pe_mpe', 'scale_par']

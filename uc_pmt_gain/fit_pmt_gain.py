@@ -168,7 +168,10 @@ class fit_pmt_gain(object):
         if b_use_cascade_model:
             if self.file_identifier == '0062_0061':
                 self.d_fit_files['settings'] = [num_bins_uc, -1e6, 2e7]
-                self.a_free_par_guesses = [9.70436881e-01, 5.37952400e+00, 2.62537293e-01, 6.76344609e-01, -4.26693497e+04, 2.49885801e+05, 3.70290616e+05, 3.88879792e-01, 1.13371514e+00, 1.00044607e+00]
+                #self.a_free_par_guesses = [9.70436881e-01, 5.37952400e+00, 2.62537293e-01, 6.76344609e-01, -4.26693497e+04, 2.49885801e+05, 3.70290616e+05, 3.88879792e-01, 1.13371514e+00, 1.00044607e+00]
+                # 591
+                #[9.94483485e-01, 5.39660840e+00, 2.74193444e-01, 6.74188193e-01, -2.72858245e+04, 2.55464134e+05, 5.09850595e+05, 2.92661268e-01, 1.10827694e+00, 9.98743490e-01]
+                self.a_free_par_guesses = [9.94483485e-01, 5.39660840e+00, 2.74193444e-01, 6.74188193e-01, -2.72858245e+04, 2.55464134e+05, 5.09850595e+05, 2.92661268e-01, 1.10827694e+00, 9.98743490e-01]
             
             elif self.file_identifier == '0066_0065':
                 self.d_fit_files['settings'] = [num_bins_uc, -1e6, 1.2e7]
@@ -188,8 +191,8 @@ class fit_pmt_gain(object):
 
             elif self.file_identifier == 'nerix_160418_1523':
                 self.d_fit_files['settings'] = [num_bins_nerix, -5e5, 3.e6]
-                # 439.9
-                self.a_free_par_guesses = [8.76119871e-01, 8.13698493e+05, 6.38497286e+05, 3.05483826e+05, 1.77574819e+05, 7.84658898e+04, 2.15749249e+05, 1.39179958e+00, 9.94824342e-01]
+                # 441.4
+                self.a_free_par_guesses = [8.90712859e-01, 1.66714787e+01, 3.00510027e+00, 1.88360224e-01, 4.60245648e+04, 2.19142063e+05, 8.37482232e+05, 3.36004373e-01, 9.90214324e-01, 9.98298001e-01]
 
             elif self.file_identifier == 'nerix_160418_1531':
                 self.d_fit_files['settings'] = [num_bins_nerix, -5e5, 4.e6]
@@ -204,28 +207,33 @@ class fit_pmt_gain(object):
         else:
             if self.file_identifier == '0062_0061':
                 self.d_fit_files['settings'] = [num_bins_uc, -1e6, 2e7]
-                # 440.0
-                self.a_free_par_guesses = [9.46698500e-01, 6.09694766e+06, 1.74701084e+06, 4.97222347e+05, 1.52284718e+05, -1.66308634e+04, 2.57703988e+05, 1.59093527e+06, 1.94871523e-01, 1.08220355e+00, 9.88975580e-01]
+                # 565.5
+                #[9.39177578e-01, 5.99514294e+06, 1.79822608e+06, 1.56502157e+06, 8.45165340e+05, -3.21044729e+04, 2.56184554e+05, 3.70411491e+05, 3.20536099e-01, 1.13892914e+00, 1.00761216e+00]
+                self.a_free_par_guesses = [9.39177578e-01, 5.99514294e+06, 1.79822608e+06, 1.56502157e+06, 8.45165340e+05, -3.21044729e+04, 2.56184554e+05, 3.70411491e+05, 3.20536099e-01, 1.13892914e+00, 1.00761216e+00]
             
             elif self.file_identifier == '0066_0065':
                 self.d_fit_files['settings'] = [num_bins_uc, -1e6, 1.2e7]
-                # 426.0
-                self.a_free_par_guesses = [8.90629655e-01, 3.68096586e+06, 1.06290061e+06, 2.83696494e+05, 3.68362085e+04, -4.19238660e+04, 2.50884073e+05, 1.00682079e+06, 2.03956190e-01, 1.16240563e+00, 9.97050079e-01]
+                # 571.1
+                #[9.74075110e-01, 3.67951989e+06, 1.06660493e+06, 8.22551709e+05, 2.51391618e+05, -3.36465739e+03, 2.68934738e+05, 1.17015890e+06, 1.43035159e-01, 1.05042182e+00, 9.89831911e-01]
+                self.a_free_par_guesses = [9.74075110e-01, 3.67951989e+06, 1.06660493e+06, 8.22551709e+05, 2.51391618e+05, -3.36465739e+03, 2.68934738e+05, 1.17015890e+06, 1.43035159e-01, 1.05042182e+00, 9.89831911e-01]
                 
             elif self.file_identifier == '0067_0068':
                 self.d_fit_files['settings'] = [num_bins_uc, -1e6, 7.5e6]
-                # 426.5
-                self.a_free_par_guesses = [9.61124179e-01, 2.14310745e+06, 5.79960425e+05, 1.63233242e+05, 1.46376177e+05, -1.73022294e+04, 2.61566943e+05, 1.57594552e+06, 2.43062053e-01, 9.61973526e-01, 1.00461595e+00]
+                # 563
+                #[9.25386604e-01, 2.14256560e+06, 6.03670780e+05, 7.08707493e+05, 4.66651782e+05, 7.77893349e+01, 2.63612608e+05, 1.49191367e+06, 1.12356464e-01, 1.05868811e+00,   9.99774255e-01]
+                self.a_free_par_guesses = [9.25386604e-01, 2.14256560e+06, 6.03670780e+05, 7.08707493e+05, 4.66651782e+05, 7.77893349e+01, 2.63612608e+05, 1.49191367e+06, 1.12356464e-01, 1.05868811e+00, 9.99774255e-01]
                 
             elif self.file_identifier == '0071_0072':
                 self.d_fit_files['settings'] = [num_bins_uc, -1e6, 3.4e7]
-                # 434.3
-                self.a_free_par_guesses = [9.03778772e-01, 9.56583607e+06, 2.82327477e+06, 6.47911514e+05, 2.54586879e+05, -3.49842724e+04, 2.56078021e+05, 1.90023783e+06, 1.88001778e-01, 1.18293821e+00, 1.00535884e+00]
+                # 617
+                #[9.67572770e-01, 9.51285596e+06, 3.05342309e+06, 1.93878212e+06, 7.07244639e+05, -4.58029692e+04, 2.49070364e+05, 5.98448539e+05, 3.49242031e-01, 1.14391651e+00, 1.01404870e+00]
+                self.a_free_par_guesses = [9.67572770e-01, 9.51285596e+06, 3.05342309e+06, 1.93878212e+06, 7.07244639e+05, -4.58029692e+04, 2.49070364e+05, 5.98448539e+05, 3.49242031e-01, 1.14391651e+00, 1.01404870e+00]
             
             elif self.file_identifier == '0073_0074':
                 self.d_fit_files['settings'] = [num_bins_uc, -1e6, 4.2e7]
-                # 443.5
-                self.a_free_par_guesses = [9.33094883e-01, 9.60581331e+06, 2.85937817e+06, 6.84171162e+05, 1.72114602e+05, -2.25406141e+04, 2.68510226e+05, 1.84902579e+06, 3.14771847e-01, 2.02629079e+00, 1.01008279e+00]
+                # 600
+                #[9.93569663e-01, 9.43267875e+06, 2.93115813e+06, 1.91537635e+06, 7.35763922e+05, -2.47203183e+04, 2.69673595e+05, 1.08081526e+06, 4.14822325e-01, 1.94591324e+00, 9.95103909e-01]
+                self.a_free_par_guesses = [9.93569663e-01, 9.43267875e+06, 2.93115813e+06, 1.91537635e+06, 7.35763922e+05, -2.47203183e+04, 2.69673595e+05, 1.08081526e+06, 4.14822325e-01, 1.94591324e+00, 9.95103909e-01]
 
 
             elif self.file_identifier == 'nerix_160418_1523':
@@ -234,7 +242,7 @@ class fit_pmt_gain(object):
 
             elif self.file_identifier == 'nerix_160418_1531':
                 self.d_fit_files['settings'] = [num_bins_nerix, -5e5, 4.e6]
-                self.a_free_par_guesses = [8.52476152e-01, 8.42034388e+05, 5.92178059e+05, 3.06834014e+05, 1.51272023e+05, 6.98304733e+04, 1.85317018e+05,   2.62942854e+00, 1.00335344e+00]
+                self.a_free_par_guesses = [7.10181973e-01, 8.91060503e+05, 6.44040319e+05, 3.33974878e+05, 1.47883993e+05, 4.26489189e+04, 1.62379092e+05, 2.86908989e+00, 1.00472883e+00]
             
             
             else:
@@ -247,24 +255,25 @@ class fit_pmt_gain(object):
         self.d_best_fit_pars = {}
         # this is reserved for MCMC fitting only!
         if self.file_identifier == '0062_0061':
-            self.d_best_fit_pars['cascade'] = [9.81146126e-01, 5.40947111e+00, 2.52369151e-01, 6.72438049e-01, -4.19711500e+04, 2.51571426e+05, 3.68948505e+05, 4.22860170e-01, 1.11285778e+00, 9.94857401e-01]
-            self.d_best_fit_pars['gaussian'] = [9.15639072e-01, 6.07481864e+06, 1.73790974e+06, 4.94929615e+05, 1.65520928e+05, -6.46191338e+03, 2.66367849e+05, 3.69658200e+06, 1.95764714e-01, 1.07746364e+00, 1.00359864e+00]
+            self.d_best_fit_pars['cascade'] = [9.66495591e-01, 5.40094282e+00, 2.64956897e-01, 6.74034387e-01, -4.51191570e+04, 2.49419916e+05, 3.24546331e+05, 3.62771594e-01, 1.11559373e+00, 9.98569964e-01] # old but better chi2
+            #self.d_best_fit_pars['cascade'] = [9.65740894e-01, 5.40141879e+00, 2.66216741e-01, 6.74060683e-01, -4.73983359e+04, 2.48767207e+05, 3.27797485e+05, 3.57030065e-01, 1.12838756e+00, 1.00161906e+00]
+            self.d_best_fit_pars['gaussian'] = [9.27455886e-01, 6.02107083e+06, 1.78588913e+06, 2.03499540e+06, 1.53514454e+06, -3.03062163e+04, 2.54759740e+05, 3.72035117e+05, 3.00810065e-01, 1.14126208e+00, 9.99234449e-01]
 
         elif self.file_identifier == '0066_0065':
-            self.d_best_fit_pars['cascade'] = [9.98905627e-01, 4.47670769e+00, 2.76263958e-01, 7.78904406e-01, -5.34433422e+03, 2.64088955e+05, 1.05676578e+06, 1.86955078e-01, 1.01766155e+00, 1.00537587e+00]
-            self.d_best_fit_pars['gaussian'] = [8.11952241e-01, 3.72516032e+06, 1.03212926e+06, 2.15119384e+05, 8.67855816e+04, -3.28750215e+04, 2.57289578e+05, 2.12423687e+06, 2.22497151e-01, 1.17461344e+00, 1.00771669e+00]
+            self.d_best_fit_pars['cascade'] = [9.98697998e-01, 4.48510356e+00, 2.78206057e-01, 7.77850195e-01, -7.43767176e+03, 2.63083714e+05, 8.55090511e+05, 1.88586817e-01, 1.03808845e+00, 9.98859784e-01]
+            self.d_best_fit_pars['gaussian'] = [9.80547588e-01, 3.67228734e+06, 1.03119880e+06, 1.08944376e+06, 6.42498405e+05, -2.46409355e+04, 2.64242483e+05, 1.16769239e+06, 1.84882188e-01, 1.07778134e+00, 9.99584994e-01]
 
         elif self.file_identifier == '0067_0068':
-            self.d_best_fit_pars['cascade'] = [9.51818339e-01, 4.45250458e+00, 2.96226888e-01, 7.48076067e-01, 1.56845841e+03, 2.63107563e+05, 5.24426303e+06, 3.19981362e-02, 1.12545016e+00, 1.00290377e+00]
-            self.d_best_fit_pars['gaussian'] = [8.60300909e-01, 2.15556289e+06, 6.59909364e+05, 4.37469931e+05, 1.81914199e+05, -3.75955847e+04, 2.48098736e+05, 1.21893581e+14, 3.81576042e-01, 1.22348133e+00, 9.99881921e-01]
+            self.d_best_fit_pars['cascade'] = [9.76261165e-01, 4.44232993e+00, 2.60179847e-01, 7.49635706e-01, -4.73605202e+03, 2.62854493e+05, 2.16243930e+05, 1.22287727e-01, 1.09768310e+00, 9.99442046e-01]
+            self.d_best_fit_pars['gaussian'] = [9.49051753e-01, 2.14215698e+06, 6.17409360e+05, 5.87860566e+05, 2.01742826e+05, 7.93001099e+01, 2.61402293e+05, 1.32714317e+06, 1.19555846e-01, 1.07471275e+00, 1.00000740e+00]
 
         elif self.file_identifier == '0071_0072':
-            self.d_best_fit_pars['cascade'] = [9.71571418e-01, 5.42423905e+00, 3.04105175e-01, 6.98151402e-01, -5.74915982e+04, 2.48901917e+05, 5.71814914e+05, 3.94784908e-01, 1.12819261e+00, 1.00058909e+00]
-            self.d_best_fit_pars['gaussian'] = [8.14160071e-01, 9.76372366e+06, 2.57096095e+06, 5.01718955e+05, 3.27214169e+05, -3.43212247e+04, 2.49691021e+05, 7.30020339e+06, 2.58181493e-01, 1.08245261e+00, 1.00762236e+00]
+            self.d_best_fit_pars['cascade'] = [9.67527817e-01, 5.38973278e+00, 2.68471032e-01, 7.01936600e-01, -5.80387843e+04, 2.46783958e+05, 5.63181912e+05, 3.92807365e-01, 1.12080939e+00, 9.99694760e-01]
+            self.d_best_fit_pars['gaussian'] = [9.45703228e-01, 9.49909717e+06, 2.85991303e+06, 2.41602972e+06, 2.00493046e+06, -4.18589563e+04, 2.39416597e+05, 8.49605025e+05, 3.54550632e-01, 1.14361339e+00, 1.00123126e+00]
 
         elif self.file_identifier == '0073_0074':
-            self.d_best_fit_pars['cascade'] = [9.65914633e-01, 4.60842215e+00, 7.12215626e-01, 8.26338609e-01, -6.33565829e+04, 2.52573114e+05, 7.39681938e+05, 5.86389254e-01, 1.98161121e+00, 1.00231835e+00]
-            self.d_best_fit_pars['gaussian'] = [8.21911297e-01, 9.61425494e+06, 2.54312053e+06, 6.05214109e+05, 4.12606210e+05, -1.75876753e+04, 2.56428312e+05, 9.73645182e+06, 4.04457241e-01, 1.95051778e+00, 1.00254052e+00]
+            self.d_best_fit_pars['cascade'] = [9.64079808e-01, 4.67173126e+00, 7.34207820e-01, 8.15681566e-01, -7.61481628e+04, 2.49755333e+05, 6.64250744e+05, 5.75134022e-01, 1.97999336e+00, 9.98884226e-01]
+            self.d_best_fit_pars['gaussian'] = [9.39843324e-01, 9.61129222e+06, 2.85479094e+06, 2.66788862e+06, 2.63479342e+06, -7.81465326e+04, 2.39556430e+05, 6.19840022e+05, 4.26982056e-01, 2.00939325e+00, 9.99757442e-01]
 
         elif self.file_identifier == 'nerix_160418_1523':
             #self.d_best_fit_pars['cascade'] =
@@ -596,12 +605,28 @@ class fit_pmt_gain(object):
                 mean_e_from_dynode = a_sampler[i][1]
                 width_e_from_dynode = a_sampler[i][2]
                 probability_electron_ionized = a_sampler[i][3]
-                bkg_mean = a_sampler[i][4]
-                bkg_std = a_sampler[i][5]
-                bkg_exp = a_sampler[i][6]
-                prob_exp_bkg = a_sampler[i][7]
-                mean_num_pe = a_sampler[i][8]
-                scale_par = a_sampler[i][9]
+                #bkg_mean = a_sampler[i][4]
+                #bkg_std = a_sampler[i][5]
+                #bkg_exp = a_sampler[i][6]
+                #prob_exp_bkg = a_sampler[i][7]
+                #mean_num_pe = a_sampler[i][8]
+                #scale_par = a_sampler[i][9]
+            
+                if not self.file_identifier[:5] == 'nerix':
+                    bkg_mean = a_sampler[i][4]
+                    bkg_std = a_sampler[i][5]
+                    bkg_exp = a_sampler[i][6]
+                    prob_exp_bkg = a_sampler[i][7]
+                    mean_num_pe = a_sampler[i][8]
+                    scale_par = a_sampler[i][9]
+                else:
+                    bkg_mean = a_sampler[i][4]
+                    bkg_std = a_sampler[i][5]
+                    bkg_exp = 1
+                    prob_exp_bkg = 0.0001
+                    mean_num_pe = a_sampler[i][6]
+                    scale_par = a_sampler[i][7]
+            
             else:
                 prob_hit_first = a_sampler[i][0]
                 spe_mean = a_sampler[i][1]
@@ -673,7 +698,7 @@ class fit_pmt_gain(object):
         
             # gather inputs for pure spec
             if self.b_use_cascade_model:
-                l_pure_spec = [self.rng_states, drv.In(num_trials), drv.InOut(a_hist_pure), drv.In(np.asarray(1, dtype=np.int32)), drv.In(mean_e_from_dynode), drv.In(width_e_from_dynode), drv.In(probability_electron_ionized), drv.In(num_bins), drv.In(bin_edges)]
+                l_pure_spec = [self.rng_states, drv.In(num_trials), drv.InOut(a_hist_pure), drv.In(np.asarray(1, dtype=np.int32)), drv.In(prob_hit_first), drv.In(mean_e_from_dynode), drv.In(width_e_from_dynode), drv.In(probability_electron_ionized), drv.In(num_bins), drv.In(bin_edges)]
                 self.gpu_pure_cascade_spectrum(*l_pure_spec, **self.d_gpu_scale)
             else:
                 l_pure_spec = [self.rng_states, drv.In(num_trials), drv.InOut(a_hist_pure), drv.In(np.asarray(1, dtype=np.int32)), drv.In(spe_mean), drv.In(spe_std), drv.In(num_bins), drv.In(bin_edges)]
@@ -694,13 +719,13 @@ class fit_pmt_gain(object):
         a_one_sigma_below = np.zeros(num_bins_plots, dtype=np.float32)
         a_one_sigma_above = np.zeros(num_bins_plots, dtype=np.float32)
         for bin in xrange(num_bins):
-            a_one_sigma_below[bin], a_one_sigma_above[bin] = np.nanpercentile(a_histograms[:, bin], [16, 84])
+            a_one_sigma_below[bin], a_one_sigma_above[bin] = np.nanpercentile(a_histograms[:, bin], [2.5, 97.5])
             
 
         a_one_sigma_below_pure = np.zeros(num_bins_plots, dtype=np.float32)
         a_one_sigma_above_pure = np.zeros(num_bins_plots, dtype=np.float32)
         for bin in xrange(num_bins):
-            a_one_sigma_below_pure[bin], a_one_sigma_above_pure[bin] = np.nanpercentile(a_histograms_pure[:, bin], [16, 84])
+            a_one_sigma_below_pure[bin], a_one_sigma_above_pure[bin] = np.nanpercentile(a_histograms_pure[:, bin], [2.5, 97.5])
         
         
             
@@ -713,10 +738,12 @@ class fit_pmt_gain(object):
     
         a_x_values, a_y_values, a_x_err_low, a_x_err_high, a_y_err_low, a_y_err_high = neriX_analysis.prepare_hist_arrays_for_plotting(self.d_fit_files['hist'], self.d_fit_files['bin_edges'])
         ax1.errorbar(a_x_values, a_y_values, xerr=[a_x_err_low, a_x_err_high], yerr=[a_y_err_low, a_y_err_high], color='b', fmt='.')
-        ax1.fill_between(self.d_fit_files['bin_centers_plots'], a_one_sigma_below, a_one_sigma_above, facecolor='red', alpha=0.1, interpolate=True)
+        ax1.fill_between(self.d_fit_files['bin_centers_plots'], a_one_sigma_below, a_one_sigma_above, facecolor='red', alpha=0.5, interpolate=True)
         ax1.set_title('Integrated Charge Spectrum - %s' % (self.file_identifier))
         ax1.set_xlabel(r'Integrated Charge [$e^{-}$]')
         ax1.set_ylabel('Counts')
+
+        ax1.set_ylim(np.min(a_y_values)/1.5, 2*np.max(a_y_values))
         
         
         
@@ -725,7 +752,7 @@ class fit_pmt_gain(object):
         s_rms_gain = 'RMS = %.2e +/- %.2e' % (np.average(a_stds), np.std(a_stds))
         
         f3, (ax3) = plt.subplots(1)
-        ax3.fill_between(self.d_fit_files['bin_centers_plots'], a_one_sigma_below_pure, a_one_sigma_above_pure, facecolor='blue', alpha=0.3, interpolate=True)
+        ax3.fill_between(self.d_fit_files['bin_centers_plots'], a_one_sigma_below_pure, a_one_sigma_above_pure, facecolor='blue', alpha=0.5, interpolate=True)
         ax3.set_title('Single PE Spectrum - Best Fit')
         ax3.set_xlabel(r'Integrated Charge [$e^{-}$]')
         ax3.set_ylabel('Normalized Counts')
@@ -788,7 +815,7 @@ class fit_pmt_gain(object):
 
 
 
-    def draw_model_fit_with_peaks(self, num_walkers, num_steps_to_include, num_steps_to_pull_from=1000):
+    def draw_model_fit_with_peaks(self, num_walkers, num_steps_to_include, num_steps_to_pull_from=500):
         
         num_dim =len(self.a_free_par_guesses)
         
@@ -837,7 +864,7 @@ class fit_pmt_gain(object):
         prob_hit_first, mean_e_from_dynode, probability_electron_ionized, bkg_mean, bkg_std, mean_num_pe, scale_par = l_bin_centers
         """
         
-        
+        """
         max_num_events_for_kde = 5e4
         assert num_steps_to_include*num_walkers < max_num_events_for_kde, 'Using KDE to estimate maximum in full space so must use less than %d events for time constraints.\n' % (int(max_num_events_for_kde))
         
@@ -867,12 +894,13 @@ class fit_pmt_gain(object):
         
         def func_for_minimizing_for_plot(a_parameters):
             a_scaled_parameters = scaler.transform(a_parameters)
-            return -kde.score(a_scaled_parameters)
+            return -kde.score(a_scaled_parameters.reshape(1, -1))
         
         
         #a_bounds = [(0.75, 1), (1, 25), (0, 1.0), (1e3, 1e5), (5e4, 8e5), (0.6, 3.), (0.2, 2)]
         a_bounds = [np.percentile(a_sampler[:,i], [2, 98]) for i in xrange(num_dim)]
         result = op.differential_evolution(func_for_minimizing_for_plot, a_bounds, disp=True, maxiter=100, tol=0.01, popsize=20, polish=True)
+        result = op.minimize(func_for_minimizing_for_plot, result.x)
         
         print result.x
         
@@ -888,7 +916,66 @@ class fit_pmt_gain(object):
                 prob_hit_first, spe_mean, spe_std, under_amp_mean, under_amp_std, bkg_mean, bkg_std, mean_num_pe, scale_par = result.x
                 bkg_exp = 1
                 prob_exp_bkg = 0.0001
+        """
         
+        a_best_fit_pars = np.zeros(num_dim)
+        
+        max_num_events_for_kde = 5e4
+        assert num_steps_to_include*num_walkers < max_num_events_for_kde, 'Using KDE to estimate maximum in full space so must use less than %d events for time constraints.\n' % (int(max_num_events_for_kde))
+        
+        a_sampler = a_sampler.reshape(-1, num_dim)
+        total_length_sampler = a_sampler.shape[0]
+        a_partial_sampler = np.zeros((num_steps_to_include*num_walkers, num_dim))
+        for i in tqdm.tqdm(xrange(num_steps_to_include*num_walkers)):
+            a_partial_sampler[i, :] = a_sampler[(-(np.random.randint(1, num_steps_to_pull_from*num_walkers) % total_length_sampler)), :]
+        #a_partial_sampler = a_sampler[:, -num_steps_to_include:, :].reshape((-1, num_dim))
+        
+        #print a_sampler[:,1:3]
+        #print a_scaled_samples
+        
+        #plt.hist(a_partial_sampler)
+        #plt.show()
+
+        for i in xrange(num_dim):
+            scaler = preprocessing.StandardScaler()
+            scaler.fit(a_partial_sampler[:, i].reshape(-1, 1))
+            a_scaled_samples = scaler.transform(a_partial_sampler[:, i].reshape(-1, 1))
+        
+        
+            # find the best fit bandwith since this allows us
+            # to play with bias vs variance
+            grid = grid_search.GridSearchCV(neighbors.KernelDensity(), {'bandwidth':np.linspace(0.01, 2., 20)}, cv=4, verbose=1, n_jobs=1)
+            print '\nDetermining best bandwidth...\n'
+            grid.fit(a_scaled_samples)
+            #print grid.best_estimator_
+
+            kde = neighbors.KernelDensity(**grid.best_params_)
+            kde.fit(a_scaled_samples)
+            
+            def func_for_minimizing_for_plot(a_parameters):
+                a_scaled_parameters = scaler.transform(a_parameters)
+                return -kde.score(a_scaled_parameters)
+            
+            
+            #a_bounds = [(0.75, 1), (1, 25), (0, 1.0), (1e3, 1e5), (5e4, 8e5), (0.6, 3.), (0.2, 2)]
+            a_bounds = [(np.min(a_partial_sampler[:, i]), np.max(a_partial_sampler[:, i]))]
+            result = op.differential_evolution(func_for_minimizing_for_plot, a_bounds, disp=True, maxiter=100, tol=0.01, popsize=20, polish=True)
+            result = op.minimize(func_for_minimizing_for_plot, result.x)
+            
+            a_best_fit_pars[i] = result.x[0]
+        
+        l_num_pe = [0, 1, 2, 3, 4, 5, 6]
+        l_colors = ['r', 'b', 'g', 'c', 'y', 'm', 'brown']
+        
+        if self.b_use_cascade_model:
+            prob_hit_first, mean_e_from_dynode, width_e_from_dynode, probability_electron_ionized, bkg_mean, bkg_std, bkg_exp, prob_exp_bkg, mean_num_pe, scale_par = a_best_fit_pars
+        else:
+            if not self.file_identifier[:5] == 'nerix':
+                prob_hit_first, spe_mean, spe_std, under_amp_mean, under_amp_std, bkg_mean, bkg_std, bkg_exp, prob_exp_bkg, mean_num_pe, scale_par = a_best_fit_pars
+            else:
+                prob_hit_first, spe_mean, spe_std, under_amp_mean, under_amp_std, bkg_mean, bkg_std, mean_num_pe, scale_par = a_best_fit_pars
+                bkg_exp = 1
+                prob_exp_bkg = 0.0001
 
         l_hists = [np.zeros(len(self.d_fit_files['bin_centers_plots']), dtype=np.float32) for i in xrange(len(l_num_pe))]
         sum_hist = np.zeros(len(self.d_fit_files['bin_centers_plots']), dtype=np.float32)
@@ -960,7 +1047,9 @@ class fit_pmt_gain(object):
         ax1.errorbar(a_x_values, a_y_values, xerr=[a_x_err_low, a_x_err_high], yerr=[a_y_err_low, a_y_err_high], color='k', fmt='.')
         for i in xrange(len(l_num_pe)):
             ax1.plot(self.d_fit_files['bin_centers_plots'], l_hists[i], color=l_colors[i])
-        ax1.plot(self.d_fit_files['bin_centers_plots'], sum_hist, color='darkorange', linestyle='-')
+        #ax1.plot(self.d_fit_files['bin_centers_plots'], sum_hist, color='darkorange', linestyle='-')
+
+        ax1.set_ylim(np.min(a_y_values)/1.5, 2*np.max(a_y_values))
 
         ax1.set_title('Integrated Charge Spectrum - %s' % (self.file_identifier))
         ax1.set_xlabel(r'Integrated Charge [$e^{-}$]')
@@ -968,25 +1057,32 @@ class fit_pmt_gain(object):
 
 
         # test
-        """
+        
         num_bins_plots = len(self.d_fit_files['bin_centers_plots'])
 
         a_hist = np.zeros(num_bins_plots, dtype=np.float32)
             
         a_hist_pure = np.zeros(num_bins_plots, dtype=np.float32)
         
-        l_args_gpu = [self.rng_states, drv.In(num_trials), drv.In(self.num_loops), drv.InOut(a_hist), drv.In(mean_num_pe), drv.In(prob_hit_first), drv.In(mean_e_from_dynode), drv.In(probability_electron_ionized), drv.In(bkg_mean), drv.In(bkg_std), drv.In(num_bins), drv.In(bin_edges)]
+        num_trials = np.asarray(self.num_mc_events, dtype=np.int32)
+        
+        if self.b_use_cascade_model:
+            l_args_gpu = [self.rng_states, drv.In(num_trials), drv.In(self.num_loops), drv.InOut(a_hist), drv.In(mean_num_pe), drv.In(prob_hit_first), drv.In(mean_e_from_dynode), drv.In(width_e_from_dynode), drv.In(probability_electron_ionized), drv.In(bkg_mean), drv.In(bkg_std), drv.In(bkg_exp), drv.In(prob_exp_bkg), drv.In(num_bins), drv.In(bin_edges)]
+            self.gpu_cascade_model(*l_args_gpu, **self.d_gpu_scale)
+        else:
+            l_args_gpu = [self.rng_states, drv.In(num_trials), drv.In(self.num_loops), drv.InOut(a_hist), drv.In(mean_num_pe), drv.In(prob_hit_first), drv.In(spe_mean), drv.In(spe_std), drv.In(under_amp_mean), drv.In(under_amp_std), drv.In(bkg_mean), drv.In(bkg_std), drv.In(bkg_exp), drv.In(prob_exp_bkg), drv.In(num_bins), drv.In(bin_edges)]
+            self.gpu_gaussian_model(*l_args_gpu, **self.d_gpu_scale)
+        
     
     
-        #start_time_mpe1 = time.time()
-        self.gpu_cascade_model(*l_args_gpu, **self.d_gpu_scale)
-        #print 'Time for MPE1 call: %f s' % (time.time() - start_time_spe)
         a_model = np.asarray(a_hist, dtype=np.float32)*np.sum(self.d_fit_files['hist'])/np.sum(a_hist)*self.d_fit_files['bin_width']/self.d_fit_files['bin_width_plots']*scale_par
 
-        ax1.plot(self.d_fit_files['bin_centers_plots'], a_model, color='pink', linestyle='--')
-        """
+        ax1.plot(self.d_fit_files['bin_centers_plots'], a_model, color='darkorange', linestyle='--')
         
-
+        
+        print '\nBest Fit Parameters: '
+        print a_best_fit_pars
+        print '\n\n'
 
         
         f1.savefig('%s%s_pe_specs_%s.png' % (self.s_directory_save_plots_name, self.s_base_save_name, self.file_identifier))
@@ -1020,11 +1116,11 @@ class fit_pmt_gain(object):
         
         
         if self.file_identifier[:5] == 'nerix':
-            if spe_mean > 1.1e6 or spe_mean < 7e5:
+            if not (8.5e5 < spe_mean < 1e6):
                 return -np.inf
-            if spe_std < 4e5 or spe_std > 6.5e5:
+            if not (4.5e5 < spe_std < 6.5e6):
                 return -np.inf
-            if prob_hit_first < 0.45:
+            if not (prob_hit_first > 0.45):
                 return -np.inf
             if spe_std > 1.0*spe_mean:
                 return -np.inf
@@ -1034,7 +1130,7 @@ class fit_pmt_gain(object):
                 return -np.inf
 
         
-        if mean_num_pe < 1.:
+        if mean_num_pe < 0.9:
             return -np.inf
         
         
@@ -1235,6 +1331,9 @@ class fit_pmt_gain(object):
     
         reduced_chi2_cascade = np.sum((a_model_cascade[cutoff_index:] - self.d_fit_files['hist'][cutoff_index:])**2 / self.d_fit_files['hist'][cutoff_index:])
         reduced_chi2_gaussian = np.sum((a_model_gaussian[cutoff_index:] - self.d_fit_files['hist'][cutoff_index:])**2 / self.d_fit_files['hist'][cutoff_index:])
+        
+        #print (a_model_cascade[cutoff_index:] - self.d_fit_files['hist'][cutoff_index:])**2 / self.d_fit_files['hist'][cutoff_index:]
+        #print (a_model_gaussian[cutoff_index:] - self.d_fit_files['hist'][cutoff_index:])**2 / self.d_fit_files['hist'][cutoff_index:]
     
         print '\nCascade Model Likelihood: %.2f' % (f_cascade_model_ln_likelihood)
         print 'Cascade Model Chi^2 / NDF: %.2f / %d' % (reduced_chi2_cascade, num_bins-num_dim_cascade)
@@ -1257,6 +1356,23 @@ class fit_pmt_gain(object):
         omega_squared = 1./num_bins*np.sum(np.log(a_ln_l_cascade/a_ln_l_gaussian)**2.) - (1./num_bins*np.sum(np.log(a_ln_l_cascade/a_ln_l_gaussian)))**2.
     
         #print modified_lr, omega_squared
+        
+        f1, (ax1) = plt.subplots(1)
+        ax1.set_yscale('log', nonposx='clip')
+    
+        a_x_values, a_y_values, a_x_err_low, a_x_err_high, a_y_err_low, a_y_err_high = neriX_analysis.prepare_hist_arrays_for_plotting(self.d_fit_files['hist'], self.d_fit_files['bin_edges'])
+        ax1.errorbar(a_x_values, a_y_values, xerr=[a_x_err_low, a_x_err_high], yerr=[a_y_err_low, a_y_err_high], color='k', fmt='.')
+        
+        ax1.plot(a_x_values, a_model_cascade, color='darkorange', linestyle='-')
+        ax1.plot(a_x_values, a_model_gaussian, color='magenta', linestyle='-')
+
+        ax1.set_title('Integrated Charge Spectrum - %s' % (self.file_identifier))
+        ax1.set_xlabel(r'Integrated Charge [$e^{-}$]')
+        ax1.set_ylabel('Counts')
+        
+        plt.show()
+        
+        
         return modified_lr / num_bins**0.5 / omega_squared**0.5
     
     
@@ -1328,13 +1444,16 @@ if __name__ == '__main__':
     #test.draw_cascade_model_fit(test.a_free_par_guesses)
     
     #test.draw_model_with_error_bands(num_walkers=64, num_steps_to_include=10)
-    #test.draw_model_fit_with_peaks(num_walkers=64, num_steps_to_include=250)
+    #test.draw_model_fit_with_peaks(num_walkers=64, num_steps_to_include=30)
 
-    #a_bounds = [(0.75, 1), (1, 40), (0.01, 1.5), (0, 0.5), (-1e5, 1e5), (5e4, 8e5), (1e4, 2e6), (0, 0.5), (0.6, 3.), (0.8, 1.2)]
+    # UC
+    #a_bounds = [(0.75, 1), (4, 5.7), (0.01, 1.5), (0, 1.0), (-1e5, 1e5), (5e4, 8e5), (1e4, 2e6), (0, 0.5), (0.6, 3.), (0.9, 1.1)]
+    # neriX
+    #a_bounds = [(0.5, 1), (15, 35), (0.01, 3.5), (0, 0.5), (-1e5, 1e5), (5e4, 8e5), (1e4, 2e6), (0, 0.5), (0.6, 3.), (0.9, 1.1)]
     #test.differential_evolution_minimizer(a_bounds, maxiter=150, tol=0.05, popsize=20, polish=False)
 
-    test.suppress_likelihood()
-    test.run_mcmc(num_walkers=64, num_steps=1950, threads=1)
+    #test.suppress_likelihood()
+    #test.run_mcmc(num_walkers=64, num_steps=1950, threads=1)
     
     
     
@@ -1344,12 +1463,12 @@ if __name__ == '__main__':
     #test.draw_gaussian_model_fit(test.a_free_par_guesses)
     
     #test.draw_model_with_error_bands(num_walkers=64, num_steps_to_include=10)
-    #test.draw_model_fit_with_peaks(num_walkers=64, num_steps_to_include=250)
+    #test.draw_model_fit_with_peaks(num_walkers=64, num_steps_to_include=30)
 
     # uc
-    #a_bounds = [(0.85, 1), (5e5, 1.1e6), (5e5, 1e6), (1e5, 8e5), (1e3, 7e5), (-1e5, 1e5), (5e4, 8e5), (1e4, 2e6), (0, 0.45), (1., 3.), (0.8, 1.2)]
+    #a_bounds = [(0.85, 1), (1e6, 1.2e7), (5e5, 5e6), (3e5, 2e6), (5e4, 1e6), (-1e5, 1e5), (5e4, 8e5), (1e4, 2e6), (0, 0.45), (1., 3.), (0.8, 1.2)]
     # nerix
-    #a_bounds = [(0.85, 1), (5e5, 1.1e6), (5e5, 1e6), (1e5, 8e5), (1e3, 7e5), (-1e5, 1e5), (5e4, 8e5), (1., 3.), (0.8, 1.2)]
+    #a_bounds = [(0.5, 1), (5e5, 1.1e6), (5e5, 1e6), (1e5, 8e5), (1e3, 7e5), (-1e5, 1e5), (5e4, 8e5), (1., 3.), (0.8, 1.2)]
     #test.differential_evolution_minimizer(a_bounds, maxiter=150, tol=0.05, popsize=20, polish=False)
 
     #test.suppress_likelihood()
@@ -1360,7 +1479,7 @@ if __name__ == '__main__':
 
 
 
-    #print test.testing_model_significance(test.d_best_fit_pars['cascade'], test.d_best_fit_pars['gaussian'], b_signal_only=False)
+    print test.testing_model_significance(test.d_best_fit_pars['cascade'], test.d_best_fit_pars['gaussian'], b_signal_only=False)
 
 
 

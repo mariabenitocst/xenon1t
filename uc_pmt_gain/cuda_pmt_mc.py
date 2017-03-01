@@ -325,16 +325,9 @@ __global__ void cascade_pmt_model(curandState *state, int *num_trials, int *num_
             {	
                 state[iteration] = s;
                 continue;
-                //return;
             }
         
-            /*
-            if (gpu_binomial(&s, 1, *prob_hit_first_dynode) < 1)
-            {
-                current_num_dynodes -= 1;
-            }
-            */
-            
+        
             pe_from_first_dynode = gpu_binomial(&s, i_tot_num_pe, 1-*prob_hit_first_dynode);
             i_tot_num_pe -= pe_from_first_dynode;
             
@@ -352,7 +345,6 @@ __global__ void cascade_pmt_model(curandState *state, int *num_trials, int *num_
             {	
                 state[iteration] = s;
                 continue;
-                //return;
             }
             
             if (i_tot_num_pe > 0)
@@ -437,7 +429,7 @@ __global__ void cascade_pmt_model(curandState *state, int *num_trials, int *num_
 }
 
 
-__global__ void pure_cascade_spectrum(curandState *state, int *num_trials, float *a_hist, int *num_pe, float *mean_e_from_dynode, float *width_e_from_dynode, float *probability_electron_ionized, int *num_bins, float *bin_edges)
+__global__ void pure_cascade_spectrum(curandState *state, int *num_trials, float *a_hist, int *num_pe, float *prob_hit_first_dynode, float *mean_e_from_dynode, float *width_e_from_dynode, float *probability_electron_ionized, int *num_bins, float *bin_edges)
 {
     //printf("hello\\n");
     
@@ -445,9 +437,10 @@ __global__ void pure_cascade_spectrum(curandState *state, int *num_trials, float
     curandState s = state[iteration];
     
     int bin_number;
-    int num_dynodes = 12;
+    const int num_dynodes = 12;
     float f_tot_num_pe;
-    int i_tot_num_pe = *num_pe;
+    int current_num_dynodes;
+    int pe_from_first_dynode;
     
     
     int num_electrons_leaving_dynode;
@@ -455,6 +448,30 @@ __global__ void pure_cascade_spectrum(curandState *state, int *num_trials, float
     
     if (iteration < *num_trials)
 	{
+    
+        int i_tot_num_pe = *num_pe;
+        current_num_dynodes = num_dynodes;
+
+        if (*prob_hit_first_dynode < 0 || *prob_hit_first_dynode > 1)
+        {	
+            state[iteration] = s;
+            return;
+        }
+    
+        pe_from_first_dynode = gpu_binomial(&s, i_tot_num_pe, 1-*prob_hit_first_dynode);
+        i_tot_num_pe -= pe_from_first_dynode;
+        
+        
+        // check if all PE are from first dynode
+        // if so just pretend all were from cathode
+        // but assume one less dynode
+        if (i_tot_num_pe == 0)
+        {
+            i_tot_num_pe = pe_from_first_dynode;
+            pe_from_first_dynode = 0;
+            current_num_dynodes -= 1;
+        }
+        
 
         if (*mean_e_from_dynode < 0)
 		{	
@@ -464,7 +481,7 @@ __global__ void pure_cascade_spectrum(curandState *state, int *num_trials, float
         
         if (i_tot_num_pe > 0)
         {
-            for (int i = 0; i < num_dynodes; i++)
+            for (int i = 0; i < current_num_dynodes; i++)
             {
                 if (i_tot_num_pe < 10000)
                 {
@@ -564,12 +581,6 @@ __global__ void fixed_pe_cascade_spectrum(curandState *state, int *num_trials, i
                 //return;
             }
         
-            /*
-            if (gpu_binomial(&s, 1, *prob_hit_first_dynode) < 1)
-            {
-                current_num_dynodes -= 1;
-            }
-            */
             
             pe_from_first_dynode = gpu_binomial(&s, i_tot_num_pe, 1-*prob_hit_first_dynode);
             i_tot_num_pe -= pe_from_first_dynode;
