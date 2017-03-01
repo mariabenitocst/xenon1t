@@ -2,4 +2,6 @@ minitrees/
 uc_pmt_gain/data
 sample_nr_calibration/results/
 uc_pmt_gain/results/
-fit_nr_band/mcmc_analysis/mcmc_results_local
+fit_nr_band/mcmc_analysis/mcmc_results_local/
+fit_nr_band/resources/
+fit_nr_band/fit_inputs/
