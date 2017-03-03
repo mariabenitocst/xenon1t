@@ -127,6 +127,9 @@ class gpu_pool:
                                                 'mc_x':self.a_mc_x,
                                                 'mc_y':self.a_mc_y,
                                                 'mc_z':self.a_mc_z,
+                                                'e_survival_prob':self.a_e_survival_prob,
+                                                'er_band_s1':self.a_er_s1,
+                                                'er_band_log':self.a_er_log,
                                                 'bin_edges_r2':self.bin_edges_r2,
                                                 'bin_edges_z':self.bin_edges_z,
                                                 's1_correction_map':self.s1_correction_map,
@@ -157,6 +160,11 @@ class gpu_pool:
         gpu_x_positions = pycuda.gpuarray.to_gpu(self.d_gpu_single_copy_arrays['mc_x'])
         gpu_y_positions = pycuda.gpuarray.to_gpu(self.d_gpu_single_copy_arrays['mc_y'])
         gpu_z_positions = pycuda.gpuarray.to_gpu(self.d_gpu_single_copy_arrays['mc_z'])
+        
+        gpu_e_survival_prob = pycuda.gpuarray.to_gpu(self.d_gpu_single_copy_arrays['e_survival_prob'])
+        
+        gpu_er_band_s1 = pycuda.gpuarray.to_gpu(self.d_gpu_single_copy_arrays['er_band_s1'])
+        gpu_er_band_log = pycuda.gpuarray.to_gpu(self.d_gpu_single_copy_arrays['er_band_log'])
 
         gpu_bin_edges_r2 = pycuda.gpuarray.to_gpu(self.d_gpu_single_copy_arrays['bin_edges_r2'])
         gpu_bin_edges_z = pycuda.gpuarray.to_gpu(self.d_gpu_single_copy_arrays['bin_edges_z'])
@@ -200,6 +208,9 @@ class gpu_pool:
                             'gpu_x_positions':gpu_x_positions,
                             'gpu_y_positions':gpu_y_positions,
                             'gpu_z_positions':gpu_z_positions,
+                            'gpu_e_survival_prob':gpu_e_survival_prob,
+                            'gpu_er_band_s1':gpu_er_band_s1,
+                            'gpu_er_band_log':gpu_er_band_log,
                             'gpu_bin_edges_r2':gpu_bin_edges_r2,
                             'gpu_bin_edges_z':gpu_bin_edges_z,
                             'gpu_s1_correction_map':gpu_s1_correction_map,
@@ -520,7 +531,7 @@ class fit_nr(object):
         if fit_type == 'sb':
             self.ln_likelihood_function = self.ln_likelihood_full_matching_band
             self.ln_likelihood_function_wrapper = self.wrapper_ln_likelihood_full_matching_band
-            self.num_dimensions = 20
+            self.num_dimensions = 21
             self.gpu_function_name = 'gpu_full_observables_production_with_log_hist'
             self.directory_name = 'run_0_band'
 
@@ -571,6 +582,9 @@ class fit_nr(object):
                                                 'mc_x':self.a_mc_x,
                                                 'mc_y':self.a_mc_y,
                                                 'mc_z':self.a_mc_z,
+                                                'e_survival_prob':self.a_e_survival_prob,
+                                                'er_band_s1':self.a_er_s1,
+                                                'er_band_log':self.a_er_log,
                                                 'bin_edges_r2':self.bin_edges_r2,
                                                 'bin_edges_z':self.bin_edges_z,
                                                 's1_correction_map':self.s1_correction_map,
@@ -663,6 +677,34 @@ class fit_nr(object):
 
 
         # -----------------------------------------
+        #  Electron Lifetime
+        # -----------------------------------------
+    
+        bin_width = self.d_mc_energy['a_el_bins'][1] - self.d_mc_energy['a_el_bins'][0]
+
+        cdf = np.cumsum(self.d_mc_energy['a_el_hist'])
+        cdf = cdf / cdf[-1]
+        values = np.random.rand(self.num_mc_events)
+        value_bins = np.searchsorted(cdf, values)
+        random_from_cdf = self.d_mc_energy['a_el_bins'][value_bins]
+
+        self.a_e_survival_prob = np.zeros(self.num_mc_events, dtype=np.float32)
+        for i in tqdm.tqdm(xrange(self.num_mc_events)):
+            current_random_num = np.random.random()*bin_width + random_from_cdf[i]
+            
+            # current random number is lifetime whch we need to convert
+            # draw from z array to make sure they are connected!
+            self.a_e_survival_prob[i] = 1. - np.exp(-(config_xe1t.z_gate - self.a_mc_z[i]) / config_xe1t.e_drift_velocity / current_random_num)
+    
+        if view_energy_spectrum:
+            plt.hist(self.a_e_survival_prob, bins=100)
+            plt.show()
+
+
+
+
+
+        # -----------------------------------------
         #  X, Y
         # -----------------------------------------
     
@@ -688,7 +730,41 @@ class fit_nr(object):
         if view_energy_spectrum:
             plt.hist2d(self.a_mc_x, self.a_mc_y, bins=100)
             plt.show()
+
+
+
+        # -----------------------------------------
+        #  Get array of ER bands S1 and S2
+        # -----------------------------------------
+
+
+        bin_width_s1 = self.d_er_band['er_band_s1_edges'][1] - self.d_er_band['er_band_s1_edges'][0]
+        bin_width_log = self.d_er_band['er_band_log_edges'][1] - self.d_er_band['er_band_log_edges'][0]
+
+        cdf = np.cumsum(self.d_er_band['er_band_hist'].ravel())
+        cdf = cdf / cdf[-1]
+        values = np.random.rand(self.num_mc_events)
+        value_bins = np.searchsorted(cdf, values)
+        s1_idx, log_idx = np.unravel_index(value_bins, (len(self.d_er_band['er_band_s1_edges'])-1, len(self.d_er_band['er_band_log_edges'])-1))
+
+        self.a_er_s1 = np.zeros(self.num_mc_events, dtype=np.float32)
+        self.a_er_log = np.zeros(self.num_mc_events, dtype=np.float32)
+        for i in tqdm.tqdm(xrange(self.num_mc_events)):
+            current_random_num_s1 = np.random.random()*bin_width_s1 + self.d_er_band['er_band_s1_edges'][s1_idx[i]]
+            current_random_num_log = np.random.random()*bin_width_log + self.d_er_band['er_band_log_edges'][log_idx[i]]
+            
+            
+            self.a_er_s1[i] = current_random_num_s1
+            self.a_er_log[i] = current_random_num_log
     
+        if view_energy_spectrum:
+            plt.hist2d(self.a_er_s1, self.a_er_log, bins=[self.d_er_band['er_band_s1_edges'], self.d_er_band['er_band_log_edges']])
+            plt.show()
+
+
+
+
+
 
 
 
@@ -725,6 +801,7 @@ class fit_nr(object):
     
         self.d_mc_energy = pickle.load(open('%sambe_mc.p' % config_xe1t.path_to_fit_inputs, 'r'))
         self.d_mc_positions = pickle.load(open('%smc_maps.p' % config_xe1t.path_to_fit_inputs, 'r'))
+        self.d_er_band = pickle.load(open('%ser_band.p' % config_xe1t.path_to_fit_inputs, 'r'))
 
 
 
@@ -742,7 +819,12 @@ class fit_nr(object):
         self.bin_edges_x = np.asarray(self.d_corrections['s2']['x_bin_edges'], dtype=np.float32)
         self.bin_edges_y = np.asarray(self.d_corrections['s2']['y_bin_edges'], dtype=np.float32)
         self.s2_correction_map = np.asarray(self.d_corrections['s2']['map'], dtype=np.float32).T
-
+        #self.s2_correction_map = np.rot90(self.s2_correction_map)
+        #self.s2_correction_map = np.flipud(self.s2_correction_map)
+        self.s2_correction_map = self.s2_correction_map.flatten()
+    
+        #plt.pcolor(self.bin_edges_x, self.bin_edges_y, self.s2_correction_map)
+        #plt.show()
 
 
 
@@ -832,7 +914,7 @@ class fit_nr(object):
 
 
     # band matching
-    def ln_likelihood_full_matching_band(self, w_value, alpha, zeta, beta, gamma, delta, kappa, eta, lamb, g1_value, extraction_efficiency_value, gas_gain_mean_value, gas_gain_width_value, dpe_prob, s1_bias_par, s1_smearing_par, s2_bias_par, s2_smearing_par, acceptance_par, scale_par, d_gpu_local_info, draw_fit=False):
+    def ln_likelihood_full_matching_band(self, w_value, alpha, zeta, beta, gamma, delta, kappa, eta, lamb, g1_value, extraction_efficiency_value, gas_gain_mean_value, gas_gain_width_value, dpe_prob, s1_bias_par, s1_smearing_par, s2_bias_par, s2_smearing_par, acceptance_par, prob_bkg, scale_par, d_gpu_local_info, draw_fit=False):
 
 
 
@@ -887,6 +969,8 @@ class fit_nr(object):
         prior_ln_likelihood += self.get_prior_log_likelihood_probability(s2_bias_par)
         prior_ln_likelihood += self.get_prior_log_likelihood_probability(s2_smearing_par)
         
+        prior_ln_likelihood += self.get_prior_log_likelihood_probability(prob_bkg)
+        
         prior_ln_likelihood += self.get_prior_log_likelihood_gaussian_prior(acceptance_par)
         
 
@@ -905,6 +989,8 @@ class fit_nr(object):
         
 
         num_trials = np.asarray(self.num_mc_events, dtype=np.int32)
+        
+        prob_bkg = np.asarray(prob_bkg, dtype=np.float32)
 
         w_value = np.asarray(w_value, dtype=np.float32)
         alpha = np.asarray(alpha, dtype=np.float32)
@@ -954,7 +1040,7 @@ class fit_nr(object):
         
         
         #start_time_mc = time.time()
-        tArgs = (d_gpu_local_info['rng_states'], drv.In(num_trials), drv.In(mean_field), d_gpu_local_info['gpu_energies'], d_gpu_local_info['gpu_x_positions'], d_gpu_local_info['gpu_y_positions'], d_gpu_local_info['gpu_z_positions'], drv.In(w_value), drv.In(alpha), drv.In(zeta), drv.In(beta), drv.In(gamma), drv.In(delta), drv.In(kappa), drv.In(eta), drv.In(lamb), drv.In(g1_value), drv.In(extraction_efficiency), drv.In(gas_gain_value), drv.In(gas_gain_width), drv.In(dpe_prob), drv.In(s1_bias_par), drv.In(s1_smearing_par), drv.In(s2_bias_par), drv.In(s2_smearing_par), drv.In(acceptance_par), drv.In(num_pts_s1bs), d_gpu_local_info['gpu_s1bs_s1s'], d_gpu_local_info['gpu_s1bs_lb_bias'], d_gpu_local_info['gpu_s1bs_ub_bias'], d_gpu_local_info['gpu_s1bs_lb_smearing'], d_gpu_local_info['gpu_s1bs_ub_smearing'], drv.In(num_pts_s2bs), d_gpu_local_info['gpu_s2bs_s2s'], d_gpu_local_info['gpu_s2bs_lb_bias'], d_gpu_local_info['gpu_s2bs_ub_bias'], d_gpu_local_info['gpu_s2bs_lb_smearing'], d_gpu_local_info['gpu_s2bs_ub_smearing'], drv.In(num_pts_s1pf), d_gpu_local_info['gpu_s1pf_s1s'], d_gpu_local_info['gpu_s1pf_lb_acc'], d_gpu_local_info['gpu_s1pf_mean_acc'], d_gpu_local_info['gpu_s1pf_ub_acc'], drv.In(num_bins_r2), d_gpu_local_info['gpu_bin_edges_r2'], drv.In(num_bins_z), d_gpu_local_info['gpu_bin_edges_z'], d_gpu_local_info['gpu_s1_correction_map'], drv.In(num_bins_x), d_gpu_local_info['gpu_bin_edges_x'], drv.In(num_bins_y), d_gpu_local_info['gpu_bin_edges_y'], d_gpu_local_info['gpu_s2_correction_map'], drv.In(num_bins_s1), d_gpu_local_info['gpu_bin_edges_s1'], drv.In(num_bins_log), d_gpu_local_info['gpu_bin_edges_log'], drv.InOut(a_hist_2d), drv.In(num_loops))
+        tArgs = (d_gpu_local_info['rng_states'], drv.In(num_trials), drv.In(mean_field), d_gpu_local_info['gpu_energies'], d_gpu_local_info['gpu_x_positions'], d_gpu_local_info['gpu_y_positions'], d_gpu_local_info['gpu_z_positions'], d_gpu_local_info['gpu_e_survival_prob'], drv.In(prob_bkg), d_gpu_local_info['gpu_er_band_s1'], d_gpu_local_info['gpu_er_band_log'], drv.In(w_value), drv.In(alpha), drv.In(zeta), drv.In(beta), drv.In(gamma), drv.In(delta), drv.In(kappa), drv.In(eta), drv.In(lamb), drv.In(g1_value), drv.In(extraction_efficiency), drv.In(gas_gain_value), drv.In(gas_gain_width), drv.In(dpe_prob), drv.In(s1_bias_par), drv.In(s1_smearing_par), drv.In(s2_bias_par), drv.In(s2_smearing_par), drv.In(acceptance_par), drv.In(num_pts_s1bs), d_gpu_local_info['gpu_s1bs_s1s'], d_gpu_local_info['gpu_s1bs_lb_bias'], d_gpu_local_info['gpu_s1bs_ub_bias'], d_gpu_local_info['gpu_s1bs_lb_smearing'], d_gpu_local_info['gpu_s1bs_ub_smearing'], drv.In(num_pts_s2bs), d_gpu_local_info['gpu_s2bs_s2s'], d_gpu_local_info['gpu_s2bs_lb_bias'], d_gpu_local_info['gpu_s2bs_ub_bias'], d_gpu_local_info['gpu_s2bs_lb_smearing'], d_gpu_local_info['gpu_s2bs_ub_smearing'], drv.In(num_pts_s1pf), d_gpu_local_info['gpu_s1pf_s1s'], d_gpu_local_info['gpu_s1pf_lb_acc'], d_gpu_local_info['gpu_s1pf_mean_acc'], d_gpu_local_info['gpu_s1pf_ub_acc'], drv.In(num_bins_r2), d_gpu_local_info['gpu_bin_edges_r2'], drv.In(num_bins_z), d_gpu_local_info['gpu_bin_edges_z'], d_gpu_local_info['gpu_s1_correction_map'], drv.In(num_bins_x), d_gpu_local_info['gpu_bin_edges_x'], drv.In(num_bins_y), d_gpu_local_info['gpu_bin_edges_y'], d_gpu_local_info['gpu_s2_correction_map'], drv.In(num_bins_s1), d_gpu_local_info['gpu_bin_edges_s1'], drv.In(num_bins_log), d_gpu_local_info['gpu_bin_edges_log'], drv.InOut(a_hist_2d), drv.In(num_loops))
 
         d_gpu_local_info['function_to_call'](*tArgs, **self.d_gpu_scale)
         
@@ -968,9 +1054,7 @@ class fit_nr(object):
         if sum_mc == 0:
             return -np.inf
 
-        #a_s1_s2_mc = np.multiply(a_s1_s2_mc, np.sum(self.a_s1_s2, dtype=np.float32) / sum_mc)
 
-        # if making PDF rather than scaling for rate
         scale_par *= float(self.num_mc_events*self.num_loops) / sum_mc
 
         a_s1_s2_mc = np.multiply(a_s1_s2_mc, float(scale_par)*self.d_coincidence_data_information['num_data_pts']/float(self.num_mc_events*self.num_loops))
@@ -1105,7 +1189,7 @@ class fit_nr(object):
         if self.fit_type == 'sb':
             #(self, w_value, alpha, zeta, beta, gamma, delta, kappa, eta, lamb, g1_value, extraction_efficiency_value, gas_gain_mean_value, gas_gain_width_value, dpe_prob, s1_bias_par, s1_smearing_par, s2_bias_par, s2_smearing_par, acceptance_par, scale_par, d_gpu_local_info, draw_fit=False)
         
-            l_par_names = ['w_value', 'alpha', 'zeta', 'beta', 'gamma', 'delta', 'kappa', 'eta', 'lambda', 'g1_value', 'extraction_efficiency_value', 'gas_gain_mean_value', 'gas_gain_width_value', 'dpe_prob', 's1_bias_par', 's1_smearing_par', 's2_bias_par', 's2_smearing_par', 'acceptance_par'] + ['scale_par']
+            l_par_names = ['w_value', 'alpha', 'zeta', 'beta', 'gamma', 'delta', 'kappa', 'eta', 'lambda', 'g1_value', 'extraction_efficiency_value', 'gas_gain_mean_value', 'gas_gain_width_value', 'dpe_prob', 's1_bias_par', 's1_smearing_par', 's2_bias_par', 's2_smearing_par', 'acceptance_par'] + ['prob_bkg', 'scale_par']
             count_free_pars = 0
 
         d_variable_arrays = {}
@@ -1173,13 +1257,8 @@ class fit_nr(object):
                 
             
             elif par_name[:8] == 'prob_bkg':
-                if self.fit_type[:2] == 'ml':
-                    d_variable_arrays[par_name] = np.random.normal(a_free_parameters[count_free_pars], .02, size=num_walkers)
-                    count_free_pars += 1
-                
-                else:
-                    d_variable_arrays[par_name] = np.random.normal(a_free_parameters[-2*(len(self.l_cathode_settings_in_use)*len(self.l_degree_settings_in_use)) + count_bkg_pars], .02, size=num_walkers)
-                    count_bkg_pars += 1
+                d_variable_arrays[par_name] = np.random.normal(a_free_parameters[count_free_pars], .02, size=num_walkers)
+                count_free_pars += 1
 
                 
 
@@ -1279,7 +1358,7 @@ class fit_nr(object):
         if not loaded_prev_sampler:
 
             if self.fit_type == 'sb':
-                a_free_parameter_guesses = [ 0.01001271, 0.12595414, 0.59300836, 0.97488136, 0.16675849, 0.44164175, 0.125355, 0.54439329]
+                a_free_parameter_guesses = [0.00990113, 0.12779713, 0.81355701, 0.61349833, 0.03481987, 0.67808783, 0.16083134, 0.00714205, 0.98958126]
                 
             else:
                 print '\nPlease run differential evolution minimizer for this setup and implement results in source code.\n'
@@ -1384,7 +1463,7 @@ class fit_nr(object):
                 l_parameters = []
                 l_parameters += [test.nest_lindhard_model['values']['w_value'], test.nest_lindhard_model['values']['alpha'], test.nest_lindhard_model['values']['zeta'], test.nest_lindhard_model['values']['beta'], a_guesses[0], test.nest_lindhard_model['values']['delta'], a_guesses[1], test.nest_lindhard_model['values']['eta'], test.nest_lindhard_model['values']['lambda']]
                 l_parameters += [test.g1_value, test.extraction_efficiency_value, test.gas_gain_value, test.gas_gain_width, 0.2]
-                l_parameters += list(a_guesses[-6:])
+                l_parameters += list(a_guesses[-7:])
                 
                 #print l_parameters
             
@@ -1404,11 +1483,11 @@ class fit_nr(object):
         self.ll_suppression_factor = 1.
 
         if self.fit_type == 'sb' and a_free_par_guesses == None:
-            a_guesses = [ 0.01001271, 0.12595414, 0.59300836, 0.97488136, 0.16675849, 0.44164175, 0.125355, 0.54439329]
+            a_guesses = [0.00990113, 0.12779713, 0.81355701, 0.61349833, 0.03481987, 0.67808783, 0.16083134, 0.00714205, 0.98958126]
             a_free_par_guesses = []
             a_free_par_guesses += [test.nest_lindhard_model['values']['w_value'], test.nest_lindhard_model['values']['alpha'], test.nest_lindhard_model['values']['zeta'], test.nest_lindhard_model['values']['beta'], a_guesses[0], test.nest_lindhard_model['values']['delta'], a_guesses[1], test.nest_lindhard_model['values']['eta'], test.nest_lindhard_model['values']['lambda']]
             a_free_par_guesses += [test.g1_value, test.extraction_efficiency_value, test.gas_gain_value, test.gas_gain_width, 0.2]
-            a_free_par_guesses += list(a_guesses[-6:])
+            a_free_par_guesses += list(a_guesses[-7:])
         
 
 
@@ -1449,7 +1528,7 @@ if __name__ == '__main__':
     d_coincidence_data['degree_setting'] = -4
     d_coincidence_data['cathode_setting'] = 12
     
-    test = fit_nr(d_coincidence_data, 'sb', num_mc_events=2e6, l_gpus=[0], num_loops=4)
+    test = fit_nr(d_coincidence_data, 'sb', num_mc_events=2e4, l_gpus=[0], num_loops=4)
     
     #(self, w_value, alpha, zeta, beta, gamma, delta, kappa, eta, lamb, g1_value, extraction_efficiency_value, gas_gain_mean_value, gas_gain_width_value, dpe_prob, s1_bias_par, s1_smearing_par, s2_bias_par, s2_smearing_par, acceptance_par, scale_par, d_gpu_local_info, draw_fit=False)
     # [ 0.01001271, 0.12595414, 0.59300836, 0.97488136, 0.16675849, 0.44164175, 0.125355, 0.54439329]
@@ -1458,11 +1537,11 @@ if __name__ == '__main__':
     #l_parameters += [test.nest_lindhard_model['values']['w_value'], test.nest_lindhard_model['values']['alpha'], test.nest_lindhard_model['values']['zeta'], test.nest_lindhard_model['values']['beta'], test.nest_lindhard_model['values']['gamma'], test.nest_lindhard_model['values']['delta'], test.nest_lindhard_model['values']['kappa'], test.nest_lindhard_model['values']['eta'], test.nest_lindhard_model['values']['lambda']]
     #l_parameters += [test.g1_value, test.extraction_efficiency_value, test.gas_gain_value, test.gas_gain_width, 0.2, 0.5, 0.5, 0.5, 0.5, 0, 0.99]
     l_parameters += [test.nest_lindhard_model['values']['w_value'], test.nest_lindhard_model['values']['alpha'], test.nest_lindhard_model['values']['zeta'], test.nest_lindhard_model['values']['beta'], 0.0100, test.nest_lindhard_model['values']['delta'], 0.126, test.nest_lindhard_model['values']['eta'], test.nest_lindhard_model['values']['lambda']]
-    l_parameters += [test.g1_value, test.extraction_efficiency_value, test.gas_gain_value, test.gas_gain_width, 0.2, 0.59, 0.97, 0.166, 0.44, 0.125, 0.544]
-    #test.gpu_pool.map(test.wrapper_ln_likelihood_full_matching_band, [l_parameters])
+    l_parameters += [test.g1_value, test.extraction_efficiency_value, test.gas_gain_value, test.gas_gain_width, 0.2, 0.59, 0.97, 0.166, 0.44, 0.125, 0.1, 0.999]
+    test.gpu_pool.map(test.wrapper_ln_likelihood_full_matching_band, [l_parameters])
     
     
-    #a_free_par_bounds = [(0.001, 0.04), (0.1, 0.2), (0, 1.), (0, 1.), (0, 1.), (0, 1.), (-2, 2), (0.3, 1.)]
+    #a_free_par_bounds = [(0.001, 0.04), (0.1, 0.2), (0, 1.), (0, 1.), (0, 1.), (0, 1.), (-2, 2), (0., 0.4), (0.8, 1.)]
     #test.differential_evolution_minimizer_free_pars(a_free_par_bounds, maxiter=150, popsize=10, tol=0.05)
     
     test.suppress_likelihood()

@@ -96,6 +96,26 @@ if not os.path.isdir(s_path_to_plots):
 
 fig_mc.savefig('%sambe_mc.png' % (s_path_to_plots))
 
+
+df_el = pd.read_table('./resources/AmBe_elife_histo.txt', names=['el', 'counts'])
+
+nb_el = len(df_el['el'])
+bin_width_el = df_el['el'][1] - df_el['el'][0]
+bin_edges_el = np.linspace(df_el['el'][0] - bin_width_el/2., df_el['el'][nb_el-1] + bin_width_el/2., nb_el+1)
+
+fig_el, ax_el = plt.subplots(1)
+
+ax_el.plot(df_el['el'], df_el['counts'], 'bo')
+
+ax_el.set_title('Electron Lifetime - AmBe')
+ax_el.set_xlabel(r'$\tau_{e^-} [\mu s]$')
+ax_el.set_ylabel('$Counts$')
+
+d_ambe_mc['a_el_hist'] = np.asarray(df_el['el'], dtype=np.float32)
+d_ambe_mc['a_el_bins'] = np.asarray(bin_edges_el, dtype=np.float32)
+
+fig_el.savefig('%selectron_lifetime.png' % (s_path_to_plots))
+
 pickle.dump(d_ambe_mc, open('%sambe_mc.p' % (s_path_to_pickle_save), 'w'))
 
 #plt.show()

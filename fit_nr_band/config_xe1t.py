@@ -6,10 +6,11 @@ results_directory_name = path_to_this_module + '/mcmc_analysis/mcmc_results_loca
 path_to_fit_inputs = '%s/fit_inputs/' % (path_to_this_module)
 
 l_energy_settings = [300, 0, 70]
+l_energy_settings_yield_plots = [100, 2, 20]
 
 num_bins = 40
-l_s1_settings = [num_bins, 4, 200]
-l_s2_settings = [num_bins, 40, 8000]
+l_s1_settings = [num_bins, 0, 100]
+l_s2_settings = [num_bins, 57, 5000]
 l_log_settings = [num_bins, 0.5, 2.5]
 
 l_quantiles = [20, 80]
@@ -25,6 +26,10 @@ d_cathode_voltages_to_field = {12:120} # in kV:V/cm
 max_r = 39.85 # 47.9 # cm
 min_z = -83.45 # -95
 max_z = -13.45 # -10
+
+z_gate = 0
+e_drift_velocity = 0.144 # cm/us
+
 
 
 # ------------------------------------------------

@@ -40,6 +40,7 @@ df_ambe_data = pickle.load(open(s_path_to_input, 'rb'))
 #print df_ambe_data
 
 df_ambe_data = df_ambe_data[((df_ambe_data['x']**2. + df_ambe_data['y']**2.) < config_xe1t.max_r**2.) & (df_ambe_data['z'] < config_xe1t.max_z) & (config_xe1t.min_z < df_ambe_data['z'])]
+df_ambe_data = df_ambe_data[(df_ambe_data['cs2'] > 150.) & (df_ambe_data['cs1'] > config_xe1t.l_s1_settings[1]) & (df_ambe_data['cs1'] < config_xe1t.l_s1_settings[2]) & (np.log10(df_ambe_data['cs2']/df_ambe_data['cs1']) > config_xe1t.l_log_settings[1]) & (np.log10(df_ambe_data['cs2']/df_ambe_data['cs1']) < config_xe1t.l_log_settings[2])]
 
 df_ambe_data['s1'] = np.asarray(df_ambe_data['cs1'], dtype=np.float32)
 df_ambe_data['s2'] = np.asarray(df_ambe_data['cs2']*(1-df_ambe_data['s2_area_fraction_top']), dtype=np.float32)

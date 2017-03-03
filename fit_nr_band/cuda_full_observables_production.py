@@ -272,7 +272,7 @@ __global__ void setup_kernel (int nthreads, curandState *state, unsigned long lo
 }
 
 
-__global__ void gpu_full_observables_production_with_log_hist(curandState *state, int *num_trials, float *meanField, float *aEnergy, float *a_x, float *a_y, float *a_z, float *w_value, float *alpha, float *zeta, float *beta, float *gamma, float *delta, float *kappa, float *eta, float *lambda, float *g1Value, float *extractionEfficiency, float *gasGainValue, float *gasGainWidth, float *dpe_prob, float *s1_bias_par, float *s1_smearing_par, float *s2_bias_par, float *s2_smearing_par, float *acceptance_parameter, int *num_pts_s1bs, float *a_s1bs_s1s, float *a_s1bs_lb_bias, float *a_s1bs_ub_bias, float *a_s1bs_lb_smearing, float *a_s1bs_ub_smearing, int *num_pts_s2bs, float *a_s2bs_s2s, float *a_s2bs_lb_bias, float *a_s2bs_ub_bias, float *a_s2bs_lb_smearing, float *a_s2bs_ub_smearing, int *num_pts_s1pf, float *a_s1pf_s1s, float *a_s1pf_lb_acc, float *a_s1pf_mean_acc, float *a_s1pf_ub_acc, int *num_bins_r2, float *bin_edges_r2, int *num_bins_z, float *bin_edges_z, float *s1_correction_map, int *num_bins_x, float *bin_edges_x, int *num_bins_y, float *bin_edges_y, float *s2_correction_map, int *num_bins_s1, float *bin_edges_s1, int *num_bins_log_s2_s1, float *bin_edges_log_s2_s1, float *hist_2d_array, int *num_loops)
+__global__ void gpu_full_observables_production_with_log_hist(curandState *state, int *num_trials, float *meanField, float *aEnergy, float *a_x, float *a_y, float *a_z, float *a_e_survival_prob, float *prob_bkg, float *a_er_band_s1, float *a_er_band_log, float *w_value, float *alpha, float *zeta, float *beta, float *gamma, float *delta, float *kappa, float *eta, float *lambda, float *g1Value, float *extractionEfficiency, float *gasGainValue, float *gasGainWidth, float *dpe_prob, float *s1_bias_par, float *s1_smearing_par, float *s2_bias_par, float *s2_smearing_par, float *acceptance_parameter, int *num_pts_s1bs, float *a_s1bs_s1s, float *a_s1bs_lb_bias, float *a_s1bs_ub_bias, float *a_s1bs_lb_smearing, float *a_s1bs_ub_smearing, int *num_pts_s2bs, float *a_s2bs_s2s, float *a_s2bs_lb_bias, float *a_s2bs_ub_bias, float *a_s2bs_lb_smearing, float *a_s2bs_ub_smearing, int *num_pts_s1pf, float *a_s1pf_s1s, float *a_s1pf_lb_acc, float *a_s1pf_mean_acc, float *a_s1pf_ub_acc, int *num_bins_r2, float *bin_edges_r2, int *num_bins_z, float *bin_edges_z, float *s1_correction_map, int *num_bins_x, float *bin_edges_x, int *num_bins_y, float *bin_edges_y, float *s2_correction_map, int *num_bins_s1, float *bin_edges_s1, int *num_bins_log_s2_s1, float *bin_edges_log_s2_s1, float *hist_2d_array, int *num_loops)
 {
 
 	int iteration = blockIdx.x * blockDim.x * blockDim.y + threadIdx.y * blockDim.x + threadIdx.x;
@@ -283,6 +283,7 @@ __global__ void gpu_full_observables_production_with_log_hist(curandState *state
     float mc_x;
     float mc_y;
     float mc_z;
+    float e_survival_prob;
     
     float quanta_mean;
 	int mcQuanta;
@@ -338,272 +339,323 @@ __global__ void gpu_full_observables_production_with_log_hist(curandState *state
         for (repetition_number=0; repetition_number < *num_loops; repetition_number++)
         {
 	
-            // ------------------------------------------------
-            //  Draw random energy and position from distribution
-            // ------------------------------------------------
-            
-            
-            mcEnergy = aEnergy[iteration];
-            mc_x = a_x[iteration];
-            mc_y = a_y[iteration];
-            mc_z = a_z[iteration];
-            
-            if (mcEnergy < 0)
+            if (curand_uniform(&s) > *prob_bkg)
             {
-                state[iteration] = s;
-                continue;
-            }
-            
-            mc_dimensionless_energy = 11.5 * (mcEnergy) * powf(54., -7./3.);
-	
-    
-    
-            // ------------------------------------------------
-            //  Find correction for S1 and S2
-            // ------------------------------------------------
-    
-            r2_correction_bin = gpu_find_lower_bound(num_bins_r2, bin_edges_r2, powf(mc_x, 2) + powf(mc_y, 2));
-            if (r2_correction_bin < 0)
-            {
-                state[iteration] = s;
-                continue;
-            }
-            
-            z_correction_bin = gpu_find_lower_bound(num_bins_z, bin_edges_z, mc_z);
-            //printf("z bin %d\\n", z_correction_bin);
-            if (z_correction_bin < 0)
-            {
-                state[iteration] = s;
-                continue;
-            }
-            s1_correction_value = s1_correction_map[z_correction_bin + *num_bins_z*r2_correction_bin];
-            //printf("s1 correction %f %f %f %d %d\\n", s1_correction_value, powf(mc_x, 2) + powf(mc_y, 2), mc_z, r2_correction_bin, z_correction_bin);
-            
-            
-            
-            x_correction_bin = gpu_find_lower_bound(num_bins_x, bin_edges_x, mc_x);
-            if (x_correction_bin < 0)
-            {
-                state[iteration] = s;
-                continue;
-            }
-            
-            y_correction_bin = gpu_find_lower_bound(num_bins_y, bin_edges_y, mc_y);
-            if (y_correction_bin < 0)
-            {
-                state[iteration] = s;
-                continue;
-            }
-            s2_correction_value = s2_correction_map[y_correction_bin + *num_bins_y*x_correction_bin];
-            
-            
-    
-
-            // ------------------------------------------------
-            //  Find number of quanta
-            // ------------------------------------------------
-            
-            
-            lindhard_factor = *kappa * (3.*powf(mc_dimensionless_energy, 0.15) + 0.7*powf(mc_dimensionless_energy, 0.6) + mc_dimensionless_energy) / ( 1 + *kappa*(3.*powf(mc_dimensionless_energy, 0.15) + 0.7*powf(mc_dimensionless_energy, 0.6) + mc_dimensionless_energy) );
-            //printf("quanta %f, %f, %f\\n", mcEnergy, lindhard_factor, *w_value);
-            //printf("quanta %f\\n", mcEnergy*lindhard_factor / (*w_value/1000.));
-            quanta_mean = mcEnergy*lindhard_factor / (*w_value/1000.);
-            
-            if (quanta_mean < 200000.)
-                mcQuanta = curand_poisson(&s, quanta_mean);
-            else
-            {
-                mcQuanta = (int)((curand_normal(&s) * powf(quanta_mean, 0.5)) + quanta_mean);
+                // ------------------------------------------------
+                //  Draw random energy and position from distribution
+                // ------------------------------------------------
                 
-                if (mcQuanta < 0)
+                
+                mcEnergy = aEnergy[iteration];
+                mc_x = a_x[iteration];
+                mc_y = a_y[iteration];
+                mc_z = a_z[iteration];
+                e_survival_prob = a_e_survival_prob[iteration];
+                
+                if (mcEnergy < 0)
+                {
                     state[iteration] = s;
                     continue;
-            }
-            
-            // ------------------------------------------------
-            //  Calculate exciton to ion ratio
-            // ------------------------------------------------
-            
-            
-            excitonToIonRatio = *alpha * powf(*meanField,-*zeta) * ( 1 - exp(-*beta * mc_dimensionless_energy) );
-            
-            
-            
-            // ------------------------------------------------
-            //  Convert to excitons and ions
-            // ------------------------------------------------
-            
-            
-            probExcitonSuccess = 1. - 1./(1. + excitonToIonRatio);
-            if (probExcitonSuccess < 0 || probExcitonSuccess > 1) 
-            {	
-                state[iteration] = s;
-                continue;
-            }
-            
-            if (mcQuanta*probExcitonSuccess < 10000)
-                mcExcitons = gpu_binomial(&s, mcQuanta, probExcitonSuccess);
-            else
-            {
-                mcExcitons = (int)(curand_normal(&s) * powf((float)mcQuanta*probExcitonSuccess*(1.-probExcitonSuccess), 0.5)) + mcQuanta*probExcitonSuccess;
-            }
-            
-            mcIons = mcQuanta - mcExcitons;
-            
-            
-            // ------------------------------------------------
-            //  Calculate recombination probability
-            // ------------------------------------------------
-            
-            //printf("quanta %f, %f, %f\\n", *gamma, *meanField, *delta);
-            
-            sigma = *gamma * powf(*meanField, -*delta);
-            probRecombination = 1. - logf(1 + mcIons*sigma)/(mcIons*sigma);
-            
-            
-            //printf("hello %f\\n", probRecombination);
-            
-            
-            // ------------------------------------------------
-            //  Ion recombination
-            // ------------------------------------------------
-
-            if (mcIons < 1 || probRecombination < 0 || probRecombination > 1) 
-            {	
-                state[iteration] = s;
-                continue;
-            }
-            
-            mcRecombined = gpu_binomial(&s, mcIons, probRecombination);
-            mcPhotons = mcExcitons + mcRecombined;
-            mcElectrons = mcIons - mcRecombined;
-            
-            
-            prob_quenched = 1. - 1./(1. + *eta*powf(mc_dimensionless_energy, *lambda));
-            mcPhotons -= gpu_binomial(&s, mcPhotons, prob_quenched);
-            
-            // ------------------------------------------------
-            //  Convert to S1 and S2 BEFORE smearing
-            // ------------------------------------------------
-            
-            if (mcPhotons < 1 || *g1Value < 0 || *g1Value > 1) 
-            {	
-                state[iteration] = s;
-                continue;
-            }
-            if (mcElectrons < 1 || *extractionEfficiency < 0)
-            {	
-                state[iteration] = s;
-                continue;
-            }
-            if (*extractionEfficiency > 1)
-            {	
-                *extractionEfficiency = 1;
-            }
-            if (*gasGainWidth <= 0) 
-            {	
-                state[iteration] = s;
-                continue;
-            }
-            
-            
-            
-            // reduce g1 by dpe value and then perform
-            // another binomial step which adds back in
-            mcS1 = gpu_binomial(&s, mcPhotons, *g1Value*s1_correction_value/(1+*dpe_prob));
-            mcS1 += gpu_binomial(&s, mcS1, *dpe_prob);
-            mcS1 /= s1_correction_value;
-            
-            
-            //return;
-            mcExtractedElectrons = gpu_binomial(&s, mcElectrons, *extractionEfficiency);
-            mcS2 = (curand_normal(&s) * *gasGainWidth*powf(mcExtractedElectrons, 0.5)) + mcExtractedElectrons**gasGainValue;
-            
-            if (mcS1 < 0) 
-            {	
-                state[iteration] = s;
-                continue;
-            }
-            if (mcS2 < 0) 
-            {	
-                state[iteration] = s;
-                continue;
-            }
-            
-            
-            
-            // ------------------------------------------------
-            //  Smear S1 and S2
-            // ------------------------------------------------
-            
-            
-            
-            
-            //printf("hello1 %f\\n", 8.);
-            
-            s1_lb_smearing = find_value_from_spline(mcS1, a_s1bs_s1s, a_s1bs_lb_smearing, num_pts_s1bs);
-            s1_ub_smearing = find_value_from_spline(mcS1, a_s1bs_s1s, a_s1bs_ub_smearing, num_pts_s1bs);
-            s1_smearing = s1_lb_smearing + *s1_smearing_par*(s1_ub_smearing - s1_lb_smearing);
-            mcS1 = (curand_normal(&s) * s1_smearing*mcS1) + mcS1;
-            
-            s1_lb_bias = find_value_from_spline(mcS1, a_s1bs_s1s, a_s1bs_lb_bias, num_pts_s1bs);
-            s1_ub_bias = find_value_from_spline(mcS1, a_s1bs_s1s, a_s1bs_ub_bias, num_pts_s1bs);
-            s1_bias = s1_lb_bias + *s1_bias_par*(s1_ub_bias - s1_lb_bias);
-            mcS1 = mcS1 / (1. + s1_bias);
-            
-            
-            
-            s2_lb_smearing = find_value_from_spline(mcS2, a_s2bs_s2s, a_s2bs_lb_smearing, num_pts_s2bs);
-            s2_ub_smearing = find_value_from_spline(mcS2, a_s2bs_s2s, a_s2bs_ub_smearing, num_pts_s2bs);
-            s2_smearing = s2_lb_smearing + *s2_smearing_par*(s2_ub_smearing - s2_lb_smearing);
-            mcS2 = (curand_normal(&s) * s2_smearing*mcS2) + mcS2;
-            
-            s2_lb_bias = find_value_from_spline(mcS2, a_s2bs_s2s, a_s2bs_lb_bias, num_pts_s2bs);
-            s2_ub_bias = find_value_from_spline(mcS2, a_s2bs_s2s, a_s2bs_ub_bias, num_pts_s2bs);
-            s2_bias = s2_lb_bias + *s2_bias_par*(s2_ub_bias - s2_lb_bias);
-            mcS2 = mcS2 / (1. + s2_bias);
-            
-            
-            
-            
-            acceptance_prob_mean = find_value_from_spline(mcS1, a_s1pf_s1s, a_s1pf_mean_acc, num_pts_s1pf);
-            
-            if (*acceptance_parameter < 0)
-                acceptance_probability_width = find_value_from_spline(mcS1, a_s1pf_s1s, a_s1pf_lb_acc, num_pts_s1pf) - acceptance_prob_mean;
-            else
-                acceptance_probability_width = find_value_from_spline(mcS1, a_s1pf_s1s, a_s1pf_ub_acc, num_pts_s1pf) - acceptance_prob_mean;
-            
-            
-            
-            acceptance_probability = acceptance_prob_mean + *acceptance_parameter*acceptance_probability_width;
-            if (acceptance_probability < 0)
-                acceptance_probability=0;
-            else if (acceptance_probability > 1) 
-                acceptance_probability=1;
-            
-            //printf("hello %f %f %f \\n", mcS1, acceptance_probability, acceptance_probability_width);
-            
-            // find indices of s1 and s2 bins for 2d histogram
-            //printf("hello \\n");
-            
-            s1_bin = gpu_find_lower_bound(num_bins_s1, bin_edges_s1, mcS1);
-            log_s2_s1_bin = gpu_find_lower_bound(num_bins_log_s2_s1, bin_edges_log_s2_s1, log10f(mcS2/mcS1));
-            
-            
-            if (s1_bin == -1 || log_s2_s1_bin == -1)
-            {
-                state[iteration] = s;
-                continue;
-            }
-            
-            
-            // add weight of point (efficiency)
-            // must be using float array
-            atomicAdd(&hist_2d_array[s1_bin + *num_bins_s1*log_s2_s1_bin], acceptance_probability);
-            
-            state[iteration] = s;
-            
+                }
+                
+                mc_dimensionless_energy = 11.5 * (mcEnergy) * powf(54., -7./3.);
         
+        
+        
+                // ------------------------------------------------
+                //  Find correction for S1 and S2
+                // ------------------------------------------------
+        
+        
+                r2_correction_bin = gpu_find_lower_bound(num_bins_r2, bin_edges_r2, powf(mc_x, 2) + powf(mc_y, 2));
+                if (r2_correction_bin < 0)
+                {
+                    state[iteration] = s;
+                    continue;
+                }
+                
+                z_correction_bin = gpu_find_lower_bound(num_bins_z, bin_edges_z, mc_z);
+                //printf("z bin %d\\n", z_correction_bin);
+                if (z_correction_bin < 0)
+                {
+                    state[iteration] = s;
+                    continue;
+                }
+                s1_correction_value = s1_correction_map[z_correction_bin + *num_bins_z*r2_correction_bin];
+                //printf("s1 correction %f %f %f %d %d\\n", s1_correction_value, powf(mc_x, 2) + powf(mc_y, 2), mc_z, r2_correction_bin, z_correction_bin);
+                
+                
+                
+                x_correction_bin = gpu_find_lower_bound(num_bins_x, bin_edges_x, mc_x);
+                if (x_correction_bin < 0)
+                {
+                    state[iteration] = s;
+                    continue;
+                }
+                
+                y_correction_bin = gpu_find_lower_bound(num_bins_y, bin_edges_y, mc_y);
+                if (y_correction_bin < 0)
+                {
+                    state[iteration] = s;
+                    continue;
+                }
+                s2_correction_value = s2_correction_map[y_correction_bin + *num_bins_y*x_correction_bin];
+                //printf("s2 correction %f %f %f %f %d %d %d\\n", s2_correction_value, mc_x, mc_y, s2_correction_map[9900], x_correction_bin, y_correction_bin, *num_bins_y);
+                
+                
+
+                // ------------------------------------------------
+                //  Find number of quanta
+                // ------------------------------------------------
+                
+                
+                lindhard_factor = *kappa * (3.*powf(mc_dimensionless_energy, 0.15) + 0.7*powf(mc_dimensionless_energy, 0.6) + mc_dimensionless_energy) / ( 1 + *kappa*(3.*powf(mc_dimensionless_energy, 0.15) + 0.7*powf(mc_dimensionless_energy, 0.6) + mc_dimensionless_energy) );
+                //printf("quanta %f, %f, %f\\n", mcEnergy, lindhard_factor, *w_value);
+                //printf("quanta %f\\n", mcEnergy*lindhard_factor / (*w_value/1000.));
+                quanta_mean = mcEnergy*lindhard_factor / (*w_value/1000.);
+                
+                if (quanta_mean < 200000.)
+                    mcQuanta = curand_poisson(&s, quanta_mean);
+                else
+                {
+                    mcQuanta = (int)((curand_normal(&s) * powf(quanta_mean, 0.5)) + quanta_mean);
+                    
+                    if (mcQuanta < 0)
+                        state[iteration] = s;
+                        continue;
+                }
+                
+                // ------------------------------------------------
+                //  Calculate exciton to ion ratio
+                // ------------------------------------------------
+                
+                
+                excitonToIonRatio = *alpha * powf(*meanField,-*zeta) * ( 1 - exp(-*beta * mc_dimensionless_energy) );
+                
+                
+                
+                // ------------------------------------------------
+                //  Convert to excitons and ions
+                // ------------------------------------------------
+                
+                
+                probExcitonSuccess = 1. - 1./(1. + excitonToIonRatio);
+                if (probExcitonSuccess < 0 || probExcitonSuccess > 1) 
+                {	
+                    state[iteration] = s;
+                    continue;
+                }
+                
+                if (mcQuanta*probExcitonSuccess < 10000)
+                    mcExcitons = gpu_binomial(&s, mcQuanta, probExcitonSuccess);
+                else
+                {
+                    mcExcitons = (int)(curand_normal(&s) * powf((float)mcQuanta*probExcitonSuccess*(1.-probExcitonSuccess), 0.5)) + mcQuanta*probExcitonSuccess;
+                }
+                
+                mcIons = mcQuanta - mcExcitons;
+                
+                
+                // ------------------------------------------------
+                //  Calculate recombination probability
+                // ------------------------------------------------
+                
+                //printf("quanta %f, %f, %f\\n", *gamma, *meanField, *delta);
+                
+                sigma = *gamma * powf(*meanField, -*delta);
+                
+                if (sigma < 0)
+                {	
+                    state[iteration] = s;
+                    continue;
+                }
+                
+                probRecombination = 1. - logf(1 + mcIons*sigma)/(mcIons*sigma);
+                
+                
+                //printf("hello %f\\n", probRecombination);
+                
+                
+                // ------------------------------------------------
+                //  Ion recombination
+                // ------------------------------------------------
+
+                if (mcIons < 1 || probRecombination < 0 || probRecombination > 1) 
+                {	
+                    state[iteration] = s;
+                    continue;
+                }
+                
+                mcRecombined = gpu_binomial(&s, mcIons, probRecombination);
+                mcPhotons = mcExcitons + mcRecombined;
+                mcElectrons = mcIons - mcRecombined;
+                
+                
+                prob_quenched = 1. - 1./(1. + *eta*powf(mc_dimensionless_energy, *lambda));
+                mcPhotons -= gpu_binomial(&s, mcPhotons, prob_quenched);
+                
+                // ------------------------------------------------
+                //  Convert to S1 and S2 BEFORE smearing
+                // ------------------------------------------------
+                
+                if (mcPhotons < 1 || *g1Value < 0 || *g1Value > 1) 
+                {	
+                    state[iteration] = s;
+                    continue;
+                }
+                if (mcElectrons < 1 || *extractionEfficiency < 0)
+                {	
+                    state[iteration] = s;
+                    continue;
+                }
+                if (*extractionEfficiency > 1)
+                {	
+                    *extractionEfficiency = 1;
+                }
+                if (*gasGainWidth <= 0) 
+                {	
+                    state[iteration] = s;
+                    continue;
+                }
+                
+                
+                
+                // reduce g1 by dpe value and then perform
+                // another binomial step which adds back in
+                mcS1 = gpu_binomial(&s, mcPhotons, *g1Value*s1_correction_value/(1+*dpe_prob));
+                mcS1 += gpu_binomial(&s, mcS1, *dpe_prob);
+                
+                
+                //return;
+                // remove electrons captured by impurities
+                mcElectrons = gpu_binomial(&s, mcElectrons, e_survival_prob);
+                
+                mcExtractedElectrons = gpu_binomial(&s, mcElectrons, *extractionEfficiency);
+                mcS2 = (curand_normal(&s) * *gasGainWidth*powf(mcExtractedElectrons, 0.5)*powf(s2_correction_value, 0.5)) + mcExtractedElectrons**gasGainValue*s2_correction_value;
+                
+                if (mcS1 < 0) 
+                {	
+                    state[iteration] = s;
+                    continue;
+                }
+                if (mcS2 < 0) 
+                {	
+                    state[iteration] = s;
+                    continue;
+                }
+                
+                
+                
+                // ------------------------------------------------
+                //  Smear S1 and S2
+                // ------------------------------------------------
+                
+                
+                
+                
+                
+                s1_lb_smearing = find_value_from_spline(mcS1, a_s1bs_s1s, a_s1bs_lb_smearing, num_pts_s1bs);
+                s1_ub_smearing = find_value_from_spline(mcS1, a_s1bs_s1s, a_s1bs_ub_smearing, num_pts_s1bs);
+                s1_smearing = s1_lb_smearing + *s1_smearing_par*(s1_ub_smearing - s1_lb_smearing);
+                mcS1 = (curand_normal(&s) * s1_smearing*mcS1) + mcS1;
+                
+                s1_lb_bias = find_value_from_spline(mcS1, a_s1bs_s1s, a_s1bs_lb_bias, num_pts_s1bs);
+                s1_ub_bias = find_value_from_spline(mcS1, a_s1bs_s1s, a_s1bs_ub_bias, num_pts_s1bs);
+                s1_bias = s1_lb_bias + *s1_bias_par*(s1_ub_bias - s1_lb_bias);
+                mcS1 = mcS1 / (1. + s1_bias);
+                
+                
+                //printf("hello1 %f\\n", mcS1);
+                
+                s2_lb_smearing = find_value_from_spline(mcS2, a_s2bs_s2s, a_s2bs_lb_smearing, num_pts_s2bs);
+                s2_ub_smearing = find_value_from_spline(mcS2, a_s2bs_s2s, a_s2bs_ub_smearing, num_pts_s2bs);
+                s2_smearing = s2_lb_smearing + *s2_smearing_par*(s2_ub_smearing - s2_lb_smearing);
+                mcS2 = (curand_normal(&s) * s2_smearing*mcS2) + mcS2;
+                
+                s2_lb_bias = find_value_from_spline(mcS2, a_s2bs_s2s, a_s2bs_lb_bias, num_pts_s2bs);
+                s2_ub_bias = find_value_from_spline(mcS2, a_s2bs_s2s, a_s2bs_ub_bias, num_pts_s2bs);
+                s2_bias = s2_lb_bias + *s2_bias_par*(s2_ub_bias - s2_lb_bias);
+                mcS2 = mcS2 / (1. + s2_bias);
+                
+                
+                
+                
+                acceptance_prob_mean = find_value_from_spline(mcS1, a_s1pf_s1s, a_s1pf_mean_acc, num_pts_s1pf);
+                
+                if (*acceptance_parameter < 0)
+                    acceptance_probability_width = find_value_from_spline(mcS1, a_s1pf_s1s, a_s1pf_lb_acc, num_pts_s1pf) - acceptance_prob_mean;
+                else
+                    acceptance_probability_width = find_value_from_spline(mcS1, a_s1pf_s1s, a_s1pf_ub_acc, num_pts_s1pf) - acceptance_prob_mean;
+                
+                
+                
+                acceptance_probability = acceptance_prob_mean + *acceptance_parameter*acceptance_probability_width;
+                if (acceptance_probability < 0)
+                    acceptance_probability=0;
+                else if (acceptance_probability > 1) 
+                    acceptance_probability=1;
+                    
+                //printf("acc %f\\n, acceptance_probability);
+                    
+                // apply back position corrections
+                mcS1 /= s1_correction_value;
+                mcS2 /= s2_correction_value;
+                mcS2 /= e_survival_prob;
+                
+                
+                if (mcS2 < 57.)
+                {
+                    state[iteration] = s;
+                    continue;
+                }
+                
+                
+                // find indices of s1 and s2 bins for 2d histogram
+                s1_bin = gpu_find_lower_bound(num_bins_s1, bin_edges_s1, mcS1);
+                log_s2_s1_bin = gpu_find_lower_bound(num_bins_log_s2_s1, bin_edges_log_s2_s1, log10f(mcS2/mcS1));
+                
+                if (s1_bin == -1 || log_s2_s1_bin == -1)
+                {
+                    state[iteration] = s;
+                    continue;
+                }
+                
+                //printf("s1 bin %f %d\\n", mcS1, s1_bin);
+                
+                // add weight of point (efficiency)
+                // must be using float array
+                atomicAdd(&hist_2d_array[s1_bin + *num_bins_s1*log_s2_s1_bin], acceptance_probability);
+                
+                state[iteration] = s;
+            
+                
+                
+            }
+            else
+            {
+            
+                // find indices of s1 and s2 bins for 2d histogram
+                s1_bin = gpu_find_lower_bound(num_bins_s1, bin_edges_s1, a_er_band_s1[iteration]);
+                log_s2_s1_bin = gpu_find_lower_bound(num_bins_log_s2_s1, bin_edges_log_s2_s1, a_er_band_log[iteration]);
+                
+                
+                if (s1_bin == -1 || log_s2_s1_bin == -1)
+                {
+                    state[iteration] = s;
+                    continue;
+                }
+                
+                
+                // add weight of point (efficiency)
+                // must be using float array
+                atomicAdd(&hist_2d_array[s1_bin + *num_bins_s1*log_s2_s1_bin], 1.);
+                
+                state[iteration] = s;
+                
+                
+            }
+            
+            
         }
         
         return;
@@ -615,7 +667,7 @@ __global__ void gpu_full_observables_production_with_log_hist(curandState *state
 
 
 
-__global__ void gpu_full_observables_production_with_arrays(curandState *state, int *num_trials, float *meanField, float *aEnergy, float *a_x, float *a_y, float *a_z, float *w_value, float *alpha, float *zeta, float *beta, float *gamma, float *delta, float *kappa, float *eta, float *lambda, float *g1Value, float *extractionEfficiency, float *gasGainValue, float *gasGainWidth, float *dpe_prob, float *s1_bias_par, float *s1_smearing_par, float *s2_bias_par, float *s2_smearing_par, float *acceptance_parameter, int *num_pts_s1bs, float *a_s1bs_s1s, float *a_s1bs_lb_bias, float *a_s1bs_ub_bias, float *a_s1bs_lb_smearing, float *a_s1bs_ub_smearing, int *num_pts_s2bs, float *a_s2bs_s2s, float *a_s2bs_lb_bias, float *a_s2bs_ub_bias, float *a_s2bs_lb_smearing, float *a_s2bs_ub_smearing, int *num_pts_s1pf, float *a_s1pf_s1s, float *a_s1pf_lb_acc, float *a_s1pf_mean_acc, float *a_s1pf_ub_acc, int *num_bins_r2, float *bin_edges_r2, int *num_bins_z, float *bin_edges_z, float *s1_correction_map, int *num_bins_x, float *bin_edges_x, int *num_bins_y, float *bin_edges_y, float *s2_correction_map, float *a_s1, float *a_s2)
+__global__ void gpu_full_observables_production_with_arrays(curandState *state, int *num_trials, float *meanField, float *aEnergy, float *a_x, float *a_y, float *a_z, float *a_e_survival_prob, float *prob_bkg, float *a_er_band_s1, float *a_er_band_log, float *w_value, float *alpha, float *zeta, float *beta, float *gamma, float *delta, float *kappa, float *eta, float *lambda, float *g1Value, float *extractionEfficiency, float *gasGainValue, float *gasGainWidth, float *dpe_prob, float *s1_bias_par, float *s1_smearing_par, float *s2_bias_par, float *s2_smearing_par, float *acceptance_parameter, int *num_pts_s1bs, float *a_s1bs_s1s, float *a_s1bs_lb_bias, float *a_s1bs_ub_bias, float *a_s1bs_lb_smearing, float *a_s1bs_ub_smearing, int *num_pts_s2bs, float *a_s2bs_s2s, float *a_s2bs_lb_bias, float *a_s2bs_ub_bias, float *a_s2bs_lb_smearing, float *a_s2bs_ub_smearing, int *num_pts_s1pf, float *a_s1pf_s1s, float *a_s1pf_lb_acc, float *a_s1pf_mean_acc, float *a_s1pf_ub_acc, int *num_bins_r2, float *bin_edges_r2, int *num_bins_z, float *bin_edges_z, float *s1_correction_map, int *num_bins_x, float *bin_edges_x, int *num_bins_y, float *bin_edges_y, float *s2_correction_map, float *a_s1, float *a_s2)
 {
 
 	int iteration = blockIdx.x * blockDim.x * blockDim.y + threadIdx.y * blockDim.x + threadIdx.x;
@@ -626,6 +678,7 @@ __global__ void gpu_full_observables_production_with_arrays(curandState *state, 
     float mc_x;
     float mc_y;
     float mc_z;
+    float e_survival_prob;
     
     float quanta_mean;
 	int mcQuanta;
@@ -680,261 +733,297 @@ __global__ void gpu_full_observables_production_with_arrays(curandState *state, 
         for (repetition_number=0; repetition_number < 1; repetition_number++)
         {
 	
-            // ------------------------------------------------
-            //  Draw random energy and position from distribution
-            // ------------------------------------------------
-            
-            
-            mcEnergy = aEnergy[iteration];
-            mc_x = a_x[iteration];
-            mc_y = a_y[iteration];
-            mc_z = a_z[iteration];
-            
-            if (mcEnergy < 0)
+            if (curand_uniform(&s) > *prob_bkg)
             {
-                state[iteration] = s;
-                continue;
-            }
-            
-            mc_dimensionless_energy = 11.5 * (mcEnergy) * powf(54., -7./3.);
-	
-    
-    
-            // ------------------------------------------------
-            //  Find correction for S1 and S2
-            // ------------------------------------------------
-    
-            r2_correction_bin = gpu_find_lower_bound(num_bins_r2, bin_edges_r2, powf(mc_x, 2) + powf(mc_y, 2));
-            if (r2_correction_bin < 0)
-            {
-                state[iteration] = s;
-                continue;
-            }
-            
-            z_correction_bin = gpu_find_lower_bound(num_bins_z, bin_edges_z, mc_z);
-            //printf("z bin %d\\n", z_correction_bin);
-            if (z_correction_bin < 0)
-            {
-                state[iteration] = s;
-                continue;
-            }
-            s1_correction_value = s1_correction_map[z_correction_bin + *num_bins_z*r2_correction_bin];
-            //printf("s1 correction %f %f %f %d %d\\n", s1_correction_value, powf(mc_x, 2) + powf(mc_y, 2), mc_z, r2_correction_bin, z_correction_bin);
-            
-            
-            
-            x_correction_bin = gpu_find_lower_bound(num_bins_x, bin_edges_x, mc_x);
-            if (x_correction_bin < 0)
-            {
-                state[iteration] = s;
-                continue;
-            }
-            
-            y_correction_bin = gpu_find_lower_bound(num_bins_y, bin_edges_y, mc_y);
-            if (y_correction_bin < 0)
-            {
-                state[iteration] = s;
-                continue;
-            }
-            s2_correction_value = s2_correction_map[y_correction_bin + *num_bins_y*x_correction_bin];
-            
-            
-    
-
-            // ------------------------------------------------
-            //  Find number of quanta
-            // ------------------------------------------------
-            
-            
-            lindhard_factor = *kappa * (3.*powf(mc_dimensionless_energy, 0.15) + 0.7*powf(mc_dimensionless_energy, 0.6) + mc_dimensionless_energy) / ( 1 + *kappa*(3.*powf(mc_dimensionless_energy, 0.15) + 0.7*powf(mc_dimensionless_energy, 0.6) + mc_dimensionless_energy) );
-            //printf("quanta %f, %f, %f\\n", mcEnergy, lindhard_factor, *w_value);
-            //printf("quanta %f\\n", mcEnergy*lindhard_factor / (*w_value/1000.));
-            quanta_mean = mcEnergy*lindhard_factor / (*w_value/1000.);
-            
-            if (quanta_mean < 200000.)
-                mcQuanta = curand_poisson(&s, quanta_mean);
-            else
-            {
-                mcQuanta = (int)((curand_normal(&s) * powf(quanta_mean, 0.5)) + quanta_mean);
+                // ------------------------------------------------
+                //  Draw random energy and position from distribution
+                // ------------------------------------------------
                 
-                if (mcQuanta < 0)
+                
+                mcEnergy = aEnergy[iteration];
+                mc_x = a_x[iteration];
+                mc_y = a_y[iteration];
+                mc_z = a_z[iteration];
+                e_survival_prob = a_e_survival_prob[iteration];
+                
+                if (mcEnergy < 0)
+                {
                     state[iteration] = s;
                     continue;
-            }
-            
-            // ------------------------------------------------
-            //  Calculate exciton to ion ratio
-            // ------------------------------------------------
-            
-            
-            excitonToIonRatio = *alpha * powf(*meanField,-*zeta) * ( 1 - exp(-*beta * mc_dimensionless_energy) );
-            
-            
-            
-            // ------------------------------------------------
-            //  Convert to excitons and ions
-            // ------------------------------------------------
-            
-            
-            probExcitonSuccess = 1. - 1./(1. + excitonToIonRatio);
-            if (probExcitonSuccess < 0 || probExcitonSuccess > 1) 
-            {	
-                state[iteration] = s;
-                continue;
-            }
-            
-            if (mcQuanta*probExcitonSuccess < 10000)
-                mcExcitons = gpu_binomial(&s, mcQuanta, probExcitonSuccess);
-            else
-            {
-                mcExcitons = (int)(curand_normal(&s) * powf((float)mcQuanta*probExcitonSuccess*(1.-probExcitonSuccess), 0.5)) + mcQuanta*probExcitonSuccess;
-            }
-            
-            mcIons = mcQuanta - mcExcitons;
-            
-            
-            // ------------------------------------------------
-            //  Calculate recombination probability
-            // ------------------------------------------------
-            
-            //printf("quanta %f, %f, %f\\n", *gamma, *meanField, *delta);
-            
-            sigma = *gamma * powf(*meanField, -*delta);
-            probRecombination = 1. - logf(1 + mcIons*sigma)/(mcIons*sigma);
-            
-            
-            //printf("hello %f\\n", probRecombination);
-            
-            
-            // ------------------------------------------------
-            //  Ion recombination
-            // ------------------------------------------------
+                }
+                
+                mc_dimensionless_energy = 11.5 * (mcEnergy) * powf(54., -7./3.);
+        
+        
+        
+                // ------------------------------------------------
+                //  Find correction for S1 and S2
+                // ------------------------------------------------
+        
+        
+                r2_correction_bin = gpu_find_lower_bound(num_bins_r2, bin_edges_r2, powf(mc_x, 2) + powf(mc_y, 2));
+                if (r2_correction_bin < 0)
+                {
+                    state[iteration] = s;
+                    continue;
+                }
+                
+                z_correction_bin = gpu_find_lower_bound(num_bins_z, bin_edges_z, mc_z);
+                //printf("z bin %d\\n", z_correction_bin);
+                if (z_correction_bin < 0)
+                {
+                    state[iteration] = s;
+                    continue;
+                }
+                s1_correction_value = s1_correction_map[z_correction_bin + *num_bins_z*r2_correction_bin];
+                //printf("s1 correction %f %f %f %d %d\\n", s1_correction_value, powf(mc_x, 2) + powf(mc_y, 2), mc_z, r2_correction_bin, z_correction_bin);
+                
+                
+                
+                x_correction_bin = gpu_find_lower_bound(num_bins_x, bin_edges_x, mc_x);
+                if (x_correction_bin < 0)
+                {
+                    state[iteration] = s;
+                    continue;
+                }
+                
+                y_correction_bin = gpu_find_lower_bound(num_bins_y, bin_edges_y, mc_y);
+                if (y_correction_bin < 0)
+                {
+                    state[iteration] = s;
+                    continue;
+                }
+                s2_correction_value = s2_correction_map[y_correction_bin + *num_bins_y*x_correction_bin];
+                //printf("s2 correction %f %f %f %f %d %d %d\\n", s2_correction_value, mc_x, mc_y, s2_correction_map[9900], x_correction_bin, y_correction_bin, *num_bins_y);
+                
+                
 
-            if (mcIons < 1 || probRecombination < 0 || probRecombination > 1) 
-            {	
+                // ------------------------------------------------
+                //  Find number of quanta
+                // ------------------------------------------------
+                
+                
+                lindhard_factor = *kappa * (3.*powf(mc_dimensionless_energy, 0.15) + 0.7*powf(mc_dimensionless_energy, 0.6) + mc_dimensionless_energy) / ( 1 + *kappa*(3.*powf(mc_dimensionless_energy, 0.15) + 0.7*powf(mc_dimensionless_energy, 0.6) + mc_dimensionless_energy) );
+                //printf("quanta %f, %f, %f\\n", mcEnergy, lindhard_factor, *w_value);
+                //printf("quanta %f\\n", mcEnergy*lindhard_factor / (*w_value/1000.));
+                quanta_mean = mcEnergy*lindhard_factor / (*w_value/1000.);
+                
+                if (quanta_mean < 200000.)
+                    mcQuanta = curand_poisson(&s, quanta_mean);
+                else
+                {
+                    mcQuanta = (int)((curand_normal(&s) * powf(quanta_mean, 0.5)) + quanta_mean);
+                    
+                    if (mcQuanta < 0)
+                        state[iteration] = s;
+                        continue;
+                }
+                
+                // ------------------------------------------------
+                //  Calculate exciton to ion ratio
+                // ------------------------------------------------
+                
+                
+                excitonToIonRatio = *alpha * powf(*meanField,-*zeta) * ( 1 - exp(-*beta * mc_dimensionless_energy) );
+                
+                
+                
+                // ------------------------------------------------
+                //  Convert to excitons and ions
+                // ------------------------------------------------
+                
+                
+                probExcitonSuccess = 1. - 1./(1. + excitonToIonRatio);
+                if (probExcitonSuccess < 0 || probExcitonSuccess > 1) 
+                {	
+                    state[iteration] = s;
+                    continue;
+                }
+                
+                if (mcQuanta*probExcitonSuccess < 10000)
+                    mcExcitons = gpu_binomial(&s, mcQuanta, probExcitonSuccess);
+                else
+                {
+                    mcExcitons = (int)(curand_normal(&s) * powf((float)mcQuanta*probExcitonSuccess*(1.-probExcitonSuccess), 0.5)) + mcQuanta*probExcitonSuccess;
+                }
+                
+                mcIons = mcQuanta - mcExcitons;
+                
+                
+                // ------------------------------------------------
+                //  Calculate recombination probability
+                // ------------------------------------------------
+                
+                //printf("quanta %f, %f, %f\\n", *gamma, *meanField, *delta);
+                
+                sigma = *gamma * powf(*meanField, -*delta);
+                probRecombination = 1. - logf(1 + mcIons*sigma)/(mcIons*sigma);
+                
+                
+                //printf("hello %f\\n", probRecombination);
+                
+                
+                // ------------------------------------------------
+                //  Ion recombination
+                // ------------------------------------------------
+
+                if (mcIons < 1 || probRecombination < 0 || probRecombination > 1) 
+                {	
+                    state[iteration] = s;
+                    continue;
+                }
+                
+                mcRecombined = gpu_binomial(&s, mcIons, probRecombination);
+                mcPhotons = mcExcitons + mcRecombined;
+                mcElectrons = mcIons - mcRecombined;
+                
+                
+                prob_quenched = 1. - 1./(1. + *eta*powf(mc_dimensionless_energy, *lambda));
+                mcPhotons -= gpu_binomial(&s, mcPhotons, prob_quenched);
+                
+                // ------------------------------------------------
+                //  Convert to S1 and S2 BEFORE smearing
+                // ------------------------------------------------
+                
+                if (mcPhotons < 1 || *g1Value < 0 || *g1Value > 1) 
+                {	
+                    state[iteration] = s;
+                    continue;
+                }
+                if (mcElectrons < 1 || *extractionEfficiency < 0)
+                {	
+                    state[iteration] = s;
+                    continue;
+                }
+                if (*extractionEfficiency > 1)
+                {	
+                    *extractionEfficiency = 1;
+                }
+                if (*gasGainWidth <= 0) 
+                {	
+                    state[iteration] = s;
+                    continue;
+                }
+                
+                
+                
+                // reduce g1 by dpe value and then perform
+                // another binomial step which adds back in
+                mcS1 = gpu_binomial(&s, mcPhotons, *g1Value*s1_correction_value/(1+*dpe_prob));
+                mcS1 += gpu_binomial(&s, mcS1, *dpe_prob);
+                
+                
+                //return;
+                // remove electrons captured by impurities
+                mcElectrons = gpu_binomial(&s, mcElectrons, e_survival_prob);
+                
+                mcExtractedElectrons = gpu_binomial(&s, mcElectrons, *extractionEfficiency);
+                mcS2 = (curand_normal(&s) * *gasGainWidth*powf(mcExtractedElectrons, 0.5)*powf(s2_correction_value, 0.5)) + mcExtractedElectrons**gasGainValue*s2_correction_value;
+                
+                if (mcS1 < 0) 
+                {	
+                    state[iteration] = s;
+                    continue;
+                }
+                if (mcS2 < 0) 
+                {	
+                    state[iteration] = s;
+                    continue;
+                }
+                
+                
+                
+                // ------------------------------------------------
+                //  Smear S1 and S2
+                // ------------------------------------------------
+                
+                
+                
+                
+                //printf("hello1 %f\\n", 8.);
+                
+                s1_lb_smearing = find_value_from_spline(mcS1, a_s1bs_s1s, a_s1bs_lb_smearing, num_pts_s1bs);
+                s1_ub_smearing = find_value_from_spline(mcS1, a_s1bs_s1s, a_s1bs_ub_smearing, num_pts_s1bs);
+                s1_smearing = s1_lb_smearing + *s1_smearing_par*(s1_ub_smearing - s1_lb_smearing);
+                mcS1 = (curand_normal(&s) * s1_smearing*mcS1) + mcS1;
+                
+                s1_lb_bias = find_value_from_spline(mcS1, a_s1bs_s1s, a_s1bs_lb_bias, num_pts_s1bs);
+                s1_ub_bias = find_value_from_spline(mcS1, a_s1bs_s1s, a_s1bs_ub_bias, num_pts_s1bs);
+                s1_bias = s1_lb_bias + *s1_bias_par*(s1_ub_bias - s1_lb_bias);
+                mcS1 = mcS1 / (1. + s1_bias);
+                
+                
+                
+                s2_lb_smearing = find_value_from_spline(mcS2, a_s2bs_s2s, a_s2bs_lb_smearing, num_pts_s2bs);
+                s2_ub_smearing = find_value_from_spline(mcS2, a_s2bs_s2s, a_s2bs_ub_smearing, num_pts_s2bs);
+                s2_smearing = s2_lb_smearing + *s2_smearing_par*(s2_ub_smearing - s2_lb_smearing);
+                mcS2 = (curand_normal(&s) * s2_smearing*mcS2) + mcS2;
+                
+                s2_lb_bias = find_value_from_spline(mcS2, a_s2bs_s2s, a_s2bs_lb_bias, num_pts_s2bs);
+                s2_ub_bias = find_value_from_spline(mcS2, a_s2bs_s2s, a_s2bs_ub_bias, num_pts_s2bs);
+                s2_bias = s2_lb_bias + *s2_bias_par*(s2_ub_bias - s2_lb_bias);
+                mcS2 = mcS2 / (1. + s2_bias);
+                
+                
+                
+                
+                acceptance_prob_mean = find_value_from_spline(mcS1, a_s1pf_s1s, a_s1pf_mean_acc, num_pts_s1pf);
+                
+                if (*acceptance_parameter < 0)
+                    acceptance_probability_width = find_value_from_spline(mcS1, a_s1pf_s1s, a_s1pf_lb_acc, num_pts_s1pf) - acceptance_prob_mean;
+                else
+                    acceptance_probability_width = find_value_from_spline(mcS1, a_s1pf_s1s, a_s1pf_ub_acc, num_pts_s1pf) - acceptance_prob_mean;
+                
+                
+                
+                acceptance_probability = acceptance_prob_mean + *acceptance_parameter*acceptance_probability_width;
+                if (acceptance_probability < 0)
+                    acceptance_probability=0;
+                else if (acceptance_probability > 1) 
+                    acceptance_probability=1;
+                    
+                if (curand_uniform(&s) > acceptance_probability)
+                {
+                    state[iteration] = s;
+                    continue;
+                }
+                    
+                    
+                // apply back position corrections
+                mcS1 /= s1_correction_value;
+                mcS2 /= s2_correction_value;
+                mcS2 /= e_survival_prob;
+                
+                if (mcS2 < 57.)
+                {
+                    state[iteration] = s;
+                    continue;
+                }
+                
+                if (mcS1 == 0. || mcS2 == 0.)
+                {
+                    state[iteration] = s;
+                    continue;
+                }
+                
+                a_s1[iteration] = mcS1;
+                a_s2[iteration] = mcS2;
+                
                 state[iteration] = s;
-                continue;
+            
+                
+                
             }
-            
-            mcRecombined = gpu_binomial(&s, mcIons, probRecombination);
-            mcPhotons = mcExcitons + mcRecombined;
-            mcElectrons = mcIons - mcRecombined;
-            
-            
-            prob_quenched = 1. - 1./(1. + *eta*powf(mc_dimensionless_energy, *lambda));
-            mcPhotons -= gpu_binomial(&s, mcPhotons, prob_quenched);
-            
-            // ------------------------------------------------
-            //  Convert to S1 and S2 BEFORE smearing
-            // ------------------------------------------------
-            
-            if (mcPhotons < 1 || *g1Value < 0 || *g1Value > 1) 
-            {	
-                state[iteration] = s;
-                continue;
-            }
-            if (mcElectrons < 1 || *extractionEfficiency < 0)
-            {	
-                state[iteration] = s;
-                continue;
-            }
-            if (*extractionEfficiency > 1)
-            {	
-                *extractionEfficiency = 1;
-            }
-            if (*gasGainWidth <= 0) 
-            {	
-                state[iteration] = s;
-                continue;
-            }
-            
-            
-            
-            // reduce g1 by dpe value and then perform
-            // another binomial step which adds back in
-            mcS1 = gpu_binomial(&s, mcPhotons, *g1Value*s1_correction_value/(1+*dpe_prob));
-            mcS1 += gpu_binomial(&s, mcS1, *dpe_prob);
-            mcS1 /= s1_correction_value;
-            
-            
-            //return;
-            mcExtractedElectrons = gpu_binomial(&s, mcElectrons, *extractionEfficiency);
-            mcS2 = (curand_normal(&s) * *gasGainWidth*powf(mcExtractedElectrons, 0.5)) + mcExtractedElectrons**gasGainValue;
-            
-            if (mcS1 < 0) 
-            {	
-                state[iteration] = s;
-                continue;
-            }
-            if (mcS2 < 0) 
-            {	
-                state[iteration] = s;
-                continue;
-            }
-            
-            
-            
-            // ------------------------------------------------
-            //  Smear S1 and S2
-            // ------------------------------------------------
-            
-            
-            
-            
-            //printf("hello1 %f\\n", 8.);
-            
-            s1_lb_smearing = find_value_from_spline(mcS1, a_s1bs_s1s, a_s1bs_lb_smearing, num_pts_s1bs);
-            s1_ub_smearing = find_value_from_spline(mcS1, a_s1bs_s1s, a_s1bs_ub_smearing, num_pts_s1bs);
-            s1_smearing = s1_lb_smearing + *s1_smearing_par*(s1_ub_smearing - s1_lb_smearing);
-            mcS1 = (curand_normal(&s) * s1_smearing*mcS1) + mcS1;
-            
-            s1_lb_bias = find_value_from_spline(mcS1, a_s1bs_s1s, a_s1bs_lb_bias, num_pts_s1bs);
-            s1_ub_bias = find_value_from_spline(mcS1, a_s1bs_s1s, a_s1bs_ub_bias, num_pts_s1bs);
-            s1_bias = s1_lb_bias + *s1_bias_par*(s1_ub_bias - s1_lb_bias);
-            mcS1 = mcS1 / (1. + s1_bias);
-            
-            
-            
-            s2_lb_smearing = find_value_from_spline(mcS2, a_s2bs_s2s, a_s2bs_lb_smearing, num_pts_s2bs);
-            s2_ub_smearing = find_value_from_spline(mcS2, a_s2bs_s2s, a_s2bs_ub_smearing, num_pts_s2bs);
-            s2_smearing = s2_lb_smearing + *s2_smearing_par*(s2_ub_smearing - s2_lb_smearing);
-            mcS2 = (curand_normal(&s) * s2_smearing*mcS2) + mcS2;
-            
-            s2_lb_bias = find_value_from_spline(mcS2, a_s2bs_s2s, a_s2bs_lb_bias, num_pts_s2bs);
-            s2_ub_bias = find_value_from_spline(mcS2, a_s2bs_s2s, a_s2bs_ub_bias, num_pts_s2bs);
-            s2_bias = s2_lb_bias + *s2_bias_par*(s2_ub_bias - s2_lb_bias);
-            mcS2 = mcS2 / (1. + s2_bias);
-            
-            
-            
-            
-            acceptance_prob_mean = find_value_from_spline(mcS1, a_s1pf_s1s, a_s1pf_mean_acc, num_pts_s1pf);
-            
-            if (*acceptance_parameter < 0)
-                acceptance_probability_width = find_value_from_spline(mcS1, a_s1pf_s1s, a_s1pf_lb_acc, num_pts_s1pf) - acceptance_prob_mean;
             else
-                acceptance_probability_width = find_value_from_spline(mcS1, a_s1pf_s1s, a_s1pf_ub_acc, num_pts_s1pf) - acceptance_prob_mean;
-            
-            
-            
-            acceptance_probability = acceptance_prob_mean + *acceptance_parameter*acceptance_probability_width;
-            if (acceptance_probability < 0)
-                acceptance_probability=0;
-            else if (acceptance_probability > 1) 
-                acceptance_probability=1;
-            
-            
-            
-            if(curand_uniform(&s) > acceptance_probability)
             {
+            
+                a_s1[iteration] = a_er_band_s1[iteration];
+                a_s2[iteration] = powf(10., a_er_band_log[iteration])*a_s1[iteration];
+            
                 state[iteration] = s;
-                continue;
+                
+                
             }
-            
-            a_s1[iteration] = mcS1;
-            a_s2[iteration] = mcS2;
-            
-            state[iteration] = s;
             
         
         }

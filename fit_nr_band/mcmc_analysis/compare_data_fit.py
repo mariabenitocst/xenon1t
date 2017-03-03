@@ -43,10 +43,10 @@ transparency = 0.2
 l_quantiles_for_2d = [50]
 
 # num_steps goes into how many random draws you will take from kept sampler
-num_steps = 5
+num_steps = 10
 # num_steps_to_include is how large of sampler you keep
 num_steps_to_include = 1000
-num_mc_events = int(1e4)
+num_mc_events = int(1e5)
 
 if(len(sys.argv) != 2):
 	print 'Usage is python compare_data_fit.py <num walkers>'
@@ -136,6 +136,7 @@ print 'Device Name: %s\n' % (dev.name())
 
 d_mc_energy = pickle.load(open('%sambe_mc.p' % config_xe1t.path_to_fit_inputs, 'r'))
 d_mc_positions = pickle.load(open('%smc_maps.p' % config_xe1t.path_to_fit_inputs, 'r'))
+d_er_band = pickle.load(open('%ser_band.p' % config_xe1t.path_to_fit_inputs, 'r'))
 
 random.seed()
     
@@ -213,6 +214,32 @@ for i in tqdm.tqdm(xrange(num_mc_events)):
 
 
 
+# -----------------------------------------
+#  Electron Lifetime
+# -----------------------------------------
+
+bin_width = d_mc_energy['a_el_bins'][1] - d_mc_energy['a_el_bins'][0]
+
+cdf = np.cumsum(d_mc_energy['a_el_hist'])
+cdf = cdf / cdf[-1]
+values = np.random.rand(num_mc_events)
+value_bins = np.searchsorted(cdf, values)
+random_from_cdf = d_mc_energy['a_el_bins'][value_bins]
+
+a_e_survival_prob = np.zeros(num_mc_events, dtype=np.float32)
+for i in tqdm.tqdm(xrange(num_mc_events)):
+    current_random_num = np.random.random()*bin_width + random_from_cdf[i]
+    
+    # current random number is lifetime whch we need to convert
+    # draw from z array to make sure they are connected!
+    a_e_survival_prob[i] = 1. - np.exp(-(config_xe1t.z_gate - a_mc_z[i]) / config_xe1t.e_drift_velocity / current_random_num)
+
+
+
+
+
+
+
 # ------------------------------------------------
 # ------------------------------------------------
 # Pull required arrays for correction maps
@@ -231,6 +258,31 @@ bin_edges_x = np.asarray(d_corrections['s2']['x_bin_edges'], dtype=np.float32)
 bin_edges_y = np.asarray(d_corrections['s2']['y_bin_edges'], dtype=np.float32)
 s2_correction_map = np.asarray(d_corrections['s2']['map'], dtype=np.float32).T
 s2_correction_map = s2_correction_map.flatten()
+
+
+# -----------------------------------------
+#  Get array of ER bands S1 and S2
+# -----------------------------------------
+
+
+bin_width_s1 = d_er_band['er_band_s1_edges'][1] - d_er_band['er_band_s1_edges'][0]
+bin_width_log = d_er_band['er_band_log_edges'][1] - d_er_band['er_band_log_edges'][0]
+
+cdf = np.cumsum(d_er_band['er_band_hist'].ravel())
+cdf = cdf / cdf[-1]
+values = np.random.rand(num_mc_events)
+value_bins = np.searchsorted(cdf, values)
+s1_idx, log_idx = np.unravel_index(value_bins, (len(d_er_band['er_band_s1_edges'])-1, len(d_er_band['er_band_log_edges'])-1))
+
+a_er_s1 = np.zeros(num_mc_events, dtype=np.float32)
+a_er_log = np.zeros(num_mc_events, dtype=np.float32)
+for i in tqdm.tqdm(xrange(num_mc_events)):
+    current_random_num_s1 = np.random.random()*bin_width_s1 + d_er_band['er_band_s1_edges'][s1_idx[i]]
+    current_random_num_log = np.random.random()*bin_width_log + d_er_band['er_band_log_edges'][log_idx[i]]
+    
+    
+    a_er_s1[i] = current_random_num_s1
+    a_er_log[i] = current_random_num_log
 
 
 
@@ -277,6 +329,11 @@ d_plotting_information['mc_y'] = a_mc_y
 
 d_plotting_information['gpu_z_positions'] = pycuda.gpuarray.to_gpu(a_mc_z)
 d_plotting_information['mc_z'] = a_mc_z
+
+d_plotting_information['gpu_e_survival_prob'] = pycuda.gpuarray.to_gpu(a_e_survival_prob)
+        
+d_plotting_information['gpu_er_band_s1'] = pycuda.gpuarray.to_gpu(a_er_s1)
+d_plotting_information['gpu_er_band_log'] = pycuda.gpuarray.to_gpu(a_er_log)
 
 d_plotting_information['gpu_bin_edges_r2'] = pycuda.gpuarray.to_gpu(bin_edges_r2)
 
@@ -389,7 +446,8 @@ for quantile_number, a_fit_parameters in enumerate(a_percentile_values):
     s2_smearing_par = np.asarray(a_fit_parameters[17], dtype=np.float32)
     acceptance_par = np.asarray(a_fit_parameters[18], dtype=np.float32)
 
-    scale_par = np.asarray(a_fit_parameters[19], dtype=np.float32)
+    prob_bkg = np.asarray(a_fit_parameters[19], dtype=np.float32)
+    scale_par = np.asarray(a_fit_parameters[20], dtype=np.float32)
     
     
     
@@ -410,7 +468,7 @@ for quantile_number, a_fit_parameters in enumerate(a_percentile_values):
     
     
     d_plotting_information
-    tArgs = (local_rng_states, drv.In(num_trials), drv.In(mean_field), d_plotting_information['gpu_energies'], d_plotting_information['gpu_x_positions'], d_plotting_information['gpu_y_positions'], d_plotting_information['gpu_z_positions'], drv.In(w_value), drv.In(alpha), drv.In(zeta), drv.In(beta), drv.In(gamma), drv.In(delta), drv.In(kappa), drv.In(eta), drv.In(lamb), drv.In(g1_value), drv.In(extraction_efficiency), drv.In(gas_gain_value), drv.In(gas_gain_width), drv.In(dpe_prob), drv.In(s1_bias_par), drv.In(s1_smearing_par), drv.In(s2_bias_par), drv.In(s2_smearing_par), drv.In(acceptance_par), drv.In(num_pts_s1bs), d_plotting_information['gpu_s1bs_s1s'], d_plotting_information['gpu_s1bs_lb_bias'], d_plotting_information['gpu_s1bs_ub_bias'], d_plotting_information['gpu_s1bs_lb_smearing'], d_plotting_information['gpu_s1bs_ub_smearing'], drv.In(num_pts_s2bs), d_plotting_information['gpu_s2bs_s2s'], d_plotting_information['gpu_s2bs_lb_bias'], d_plotting_information['gpu_s2bs_ub_bias'], d_plotting_information['gpu_s2bs_lb_smearing'], d_plotting_information['gpu_s2bs_ub_smearing'], drv.In(num_pts_s1pf), d_plotting_information['gpu_s1pf_s1s'], d_plotting_information['gpu_s1pf_lb_acc'], d_plotting_information['gpu_s1pf_mean_acc'], d_plotting_information['gpu_s1pf_ub_acc'], drv.In(num_bins_r2), d_plotting_information['gpu_bin_edges_r2'], drv.In(num_bins_z), d_plotting_information['gpu_bin_edges_z'], d_plotting_information['gpu_s1_correction_map'], drv.In(num_bins_x), d_plotting_information['gpu_bin_edges_x'], drv.In(num_bins_y), d_plotting_information['gpu_bin_edges_y'], d_plotting_information['gpu_s2_correction_map'], drv.InOut(a_s1_mc), drv.InOut(a_s2_mc))
+    tArgs = (local_rng_states, drv.In(num_trials), drv.In(mean_field), d_plotting_information['gpu_energies'], d_plotting_information['gpu_x_positions'], d_plotting_information['gpu_y_positions'], d_plotting_information['gpu_z_positions'], d_plotting_information['gpu_e_survival_prob'], drv.In(prob_bkg), d_plotting_information['gpu_er_band_s1'], d_plotting_information['gpu_er_band_log'], drv.In(w_value), drv.In(alpha), drv.In(zeta), drv.In(beta), drv.In(gamma), drv.In(delta), drv.In(kappa), drv.In(eta), drv.In(lamb), drv.In(g1_value), drv.In(extraction_efficiency), drv.In(gas_gain_value), drv.In(gas_gain_width), drv.In(dpe_prob), drv.In(s1_bias_par), drv.In(s1_smearing_par), drv.In(s2_bias_par), drv.In(s2_smearing_par), drv.In(acceptance_par), drv.In(num_pts_s1bs), d_plotting_information['gpu_s1bs_s1s'], d_plotting_information['gpu_s1bs_lb_bias'], d_plotting_information['gpu_s1bs_ub_bias'], d_plotting_information['gpu_s1bs_lb_smearing'], d_plotting_information['gpu_s1bs_ub_smearing'], drv.In(num_pts_s2bs), d_plotting_information['gpu_s2bs_s2s'], d_plotting_information['gpu_s2bs_lb_bias'], d_plotting_information['gpu_s2bs_ub_bias'], d_plotting_information['gpu_s2bs_lb_smearing'], d_plotting_information['gpu_s2bs_ub_smearing'], drv.In(num_pts_s1pf), d_plotting_information['gpu_s1pf_s1s'], d_plotting_information['gpu_s1pf_lb_acc'], d_plotting_information['gpu_s1pf_mean_acc'], d_plotting_information['gpu_s1pf_ub_acc'], drv.In(num_bins_r2), d_plotting_information['gpu_bin_edges_r2'], drv.In(num_bins_z), d_plotting_information['gpu_bin_edges_z'], d_plotting_information['gpu_s1_correction_map'], drv.In(num_bins_x), d_plotting_information['gpu_bin_edges_x'], drv.In(num_bins_y), d_plotting_information['gpu_bin_edges_y'], d_plotting_information['gpu_s2_correction_map'], drv.InOut(a_s1_mc), drv.InOut(a_s2_mc))
 
     gpu_observables_func(*tArgs, **d_gpu_scale)
 
@@ -475,9 +533,9 @@ for i in tqdm.tqdm(xrange(num_walkers*num_steps)):
     l_dfs[i] = {}
 
 
-    a_fit_parameters = a_samples[-(np.random.randint(1, num_steps_to_include*num_walkers) % total_length_sampler), :]
+    #a_fit_parameters = a_samples[-(np.random.randint(1, num_steps_to_include*num_walkers) % total_length_sampler), :]
     #print 'debugging so no random int'
-    #a_fit_parameters = a_samples[-i, :]
+    a_fit_parameters = a_samples[-i, :]
 
     # load parameters into proper variables
     num_trials = np.asarray(num_mc_events, dtype=np.int32)
@@ -507,7 +565,8 @@ for i in tqdm.tqdm(xrange(num_walkers*num_steps)):
     s2_smearing_par = np.asarray(a_fit_parameters[17], dtype=np.float32)
     acceptance_par = np.asarray(a_fit_parameters[18], dtype=np.float32)
 
-    scale_par = np.asarray(a_fit_parameters[19], dtype=np.float32)
+    prob_bkg = np.asarray(a_fit_parameters[19], dtype=np.float32)
+    scale_par = np.asarray(a_fit_parameters[20], dtype=np.float32)
     
     
     
@@ -522,14 +581,14 @@ for i in tqdm.tqdm(xrange(num_walkers*num_steps)):
     num_bins_y = np.asarray(len(bin_edges_y)-1, dtype=np.int32)
     
 
-    a_s1_mc_current_iteration = np.full(num_mc_events, -1, dtype=np.float32)
-    a_s2_mc_current_iteration = np.full(num_mc_events, -1, dtype=np.float32)
+    a_s1_mc_current_iteration = np.full(num_mc_events, -2, dtype=np.float32)
+    a_s2_mc_current_iteration = np.full(num_mc_events, -2, dtype=np.float32)
 
 
-    d_plotting_information
-    tArgs = (local_rng_states, drv.In(num_trials), drv.In(mean_field), d_plotting_information['gpu_energies'], d_plotting_information['gpu_x_positions'], d_plotting_information['gpu_y_positions'], d_plotting_information['gpu_z_positions'], drv.In(w_value), drv.In(alpha), drv.In(zeta), drv.In(beta), drv.In(gamma), drv.In(delta), drv.In(kappa), drv.In(eta), drv.In(lamb), drv.In(g1_value), drv.In(extraction_efficiency), drv.In(gas_gain_value), drv.In(gas_gain_width), drv.In(dpe_prob), drv.In(s1_bias_par), drv.In(s1_smearing_par), drv.In(s2_bias_par), drv.In(s2_smearing_par), drv.In(acceptance_par), drv.In(num_pts_s1bs), d_plotting_information['gpu_s1bs_s1s'], d_plotting_information['gpu_s1bs_lb_bias'], d_plotting_information['gpu_s1bs_ub_bias'], d_plotting_information['gpu_s1bs_lb_smearing'], d_plotting_information['gpu_s1bs_ub_smearing'], drv.In(num_pts_s2bs), d_plotting_information['gpu_s2bs_s2s'], d_plotting_information['gpu_s2bs_lb_bias'], d_plotting_information['gpu_s2bs_ub_bias'], d_plotting_information['gpu_s2bs_lb_smearing'], d_plotting_information['gpu_s2bs_ub_smearing'], drv.In(num_pts_s1pf), d_plotting_information['gpu_s1pf_s1s'], d_plotting_information['gpu_s1pf_lb_acc'], d_plotting_information['gpu_s1pf_mean_acc'], d_plotting_information['gpu_s1pf_ub_acc'], drv.In(num_bins_r2), d_plotting_information['gpu_bin_edges_r2'], drv.In(num_bins_z), d_plotting_information['gpu_bin_edges_z'], d_plotting_information['gpu_s1_correction_map'], drv.In(num_bins_x), d_plotting_information['gpu_bin_edges_x'], drv.In(num_bins_y), d_plotting_information['gpu_bin_edges_y'], d_plotting_information['gpu_s2_correction_map'], drv.InOut(a_s1_mc_current_iteration), drv.InOut(a_s2_mc_current_iteration))
+    tArgs = (local_rng_states, drv.In(num_trials), drv.In(mean_field), d_plotting_information['gpu_energies'], d_plotting_information['gpu_x_positions'], d_plotting_information['gpu_y_positions'], d_plotting_information['gpu_z_positions'], d_plotting_information['gpu_e_survival_prob'], drv.In(prob_bkg), d_plotting_information['gpu_er_band_s1'], d_plotting_information['gpu_er_band_log'], drv.In(w_value), drv.In(alpha), drv.In(zeta), drv.In(beta), drv.In(gamma), drv.In(delta), drv.In(kappa), drv.In(eta), drv.In(lamb), drv.In(g1_value), drv.In(extraction_efficiency), drv.In(gas_gain_value), drv.In(gas_gain_width), drv.In(dpe_prob), drv.In(s1_bias_par), drv.In(s1_smearing_par), drv.In(s2_bias_par), drv.In(s2_smearing_par), drv.In(acceptance_par), drv.In(num_pts_s1bs), d_plotting_information['gpu_s1bs_s1s'], d_plotting_information['gpu_s1bs_lb_bias'], d_plotting_information['gpu_s1bs_ub_bias'], d_plotting_information['gpu_s1bs_lb_smearing'], d_plotting_information['gpu_s1bs_ub_smearing'], drv.In(num_pts_s2bs), d_plotting_information['gpu_s2bs_s2s'], d_plotting_information['gpu_s2bs_lb_bias'], d_plotting_information['gpu_s2bs_ub_bias'], d_plotting_information['gpu_s2bs_lb_smearing'], d_plotting_information['gpu_s2bs_ub_smearing'], drv.In(num_pts_s1pf), d_plotting_information['gpu_s1pf_s1s'], d_plotting_information['gpu_s1pf_lb_acc'], d_plotting_information['gpu_s1pf_mean_acc'], d_plotting_information['gpu_s1pf_ub_acc'], drv.In(num_bins_r2), d_plotting_information['gpu_bin_edges_r2'], drv.In(num_bins_z), d_plotting_information['gpu_bin_edges_z'], d_plotting_information['gpu_s1_correction_map'], drv.In(num_bins_x), d_plotting_information['gpu_bin_edges_x'], drv.In(num_bins_y), d_plotting_information['gpu_bin_edges_y'], d_plotting_information['gpu_s2_correction_map'], drv.InOut(a_s1_mc_current_iteration), drv.InOut(a_s2_mc_current_iteration))
     
     gpu_observables_func(*tArgs, **d_gpu_scale)
+    #print a_s1_mc_current_iteration
     
     
     l_dfs[i]['main_df'] = pd.DataFrame({'s1':a_s1_mc_current_iteration, 's2':a_s2_mc_current_iteration})
@@ -603,9 +662,11 @@ df_mc = df_mc[(df_mc['s1'] > l_s1_settings[1]) & (df_mc['s1'] < l_s1_settings[2]
 # grab median lines for each
 assert l_s1_settings[0] == l_log_settings[0]
 
-a_median_line_s1 = np.zeros(l_s1_settings[0])
-a_median_line_data_log = np.zeros(l_s1_settings[0])
-a_median_line_mc_log = np.zeros(l_s1_settings[0])
+a_median_line_s1 = [0 for i in xrange(l_s1_settings[0])]
+a_median_line_data_log = [0 for i in xrange(l_s1_settings[0])]
+a_median_line_mc_log = [0 for i in xrange(l_s1_settings[0])]
+
+l_missed_pts = []
 
 for i in xrange(l_s1_settings[0]):
     a_median_line_s1[i] = (s1_edges[i+1] + s1_edges[i]) / 2.
@@ -614,7 +675,8 @@ for i in xrange(l_s1_settings[0]):
     current_df_mc = df_mc[(df_mc['s1'] > s1_edges[i]) & (df_mc['s1'] < s1_edges[i+1])]
 
     if len(current_df_data['log']) == 0:
-        a_median_line_data_log[i] = a_median_line_data_log[i-1]
+        #a_median_line_data_log[i] = a_median_line_data_log[i-1]
+        l_missed_pts.append(i)
     else:
         #print current_df_data['log']
         #print np.median(current_df_data['log'])
@@ -625,6 +687,13 @@ for i in xrange(l_s1_settings[0]):
         a_median_line_mc_log[i] = a_median_line_mc_log[i-1]
     else:
         a_median_line_mc_log[i] = np.median(current_df_mc['log'])
+
+
+l_missed_pts.reverse()
+for pt in l_missed_pts:
+    a_median_line_s1.pop(pt)
+    a_median_line_data_log.pop(pt)
+    a_median_line_mc_log.pop(pt)
 
 
 # draw on data hist and get handles

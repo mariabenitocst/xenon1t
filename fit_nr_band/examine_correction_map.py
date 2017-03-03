@@ -44,8 +44,8 @@ d_correction_maps = pickle.load(open(s_path_to_corrections, 'rb'))
 # --------------------------------------------
 # --------------------------------------------
 
-s1_r2_bin_edges = np.linspace(d_correction_maps['FastS1LCERZMap']['xlower'], d_correction_maps['FastS1LCERZMap']['xupper'], d_correction_maps['FastS1LCERZMap']['xnbins'])
-s1_z_bin_edges = np.linspace(d_correction_maps['FastS1LCERZMap']['ylower'], d_correction_maps['FastS1LCERZMap']['yupper'], d_correction_maps['FastS1LCERZMap']['ynbins'])
+s1_r2_bin_edges = np.linspace(d_correction_maps['FastS1LCERZMap']['xlower'], d_correction_maps['FastS1LCERZMap']['xupper'], d_correction_maps['FastS1LCERZMap']['xnbins']+1)
+s1_z_bin_edges = np.linspace(d_correction_maps['FastS1LCERZMap']['ylower'], d_correction_maps['FastS1LCERZMap']['yupper'], d_correction_maps['FastS1LCERZMap']['ynbins']+1)
 
 f_s1_correction, ax_s1_correction = plt.subplots(1)
 
@@ -68,12 +68,12 @@ f_s1_correction.colorbar(s1_pcolor_data, ax=ax_s1_correction)
 # --------------------------------------------
 # --------------------------------------------
 
-s2_x_bin_edges = np.linspace(d_correction_maps['FastS2LCEXYMap']['xlower'], d_correction_maps['FastS2LCEXYMap']['xupper'], d_correction_maps['FastS2LCEXYMap']['xnbins'])
-s2_y_bin_edges = np.linspace(d_correction_maps['FastS2LCEXYMap']['ylower'], d_correction_maps['FastS2LCEXYMap']['yupper'], d_correction_maps['FastS2LCEXYMap']['ynbins'])
+s2_x_bin_edges = np.linspace(d_correction_maps['FastS2LCEXYMap']['xlower'], d_correction_maps['FastS2LCEXYMap']['xupper'], d_correction_maps['FastS2LCEXYMap']['xnbins']+1)
+s2_y_bin_edges = np.linspace(d_correction_maps['FastS2LCEXYMap']['ylower'], d_correction_maps['FastS2LCEXYMap']['yupper'], d_correction_maps['FastS2LCEXYMap']['ynbins']+1)
 
 f_s2_correction, ax_s2_correction = plt.subplots(1)
 
-s2_pcolor_data = ax_s2_correction.pcolormesh(s2_x_bin_edges, s2_y_bin_edges, d_correction_maps['FastS2LCEXYMap']['map'])
+s2_pcolor_data = ax_s2_correction.pcolor(s2_x_bin_edges, s2_y_bin_edges, d_correction_maps['FastS2LCEXYMap']['map'])
 
 ax_s2_correction.set_title('S2 Correction Map')
 ax_s2_correction.set_xlabel('$X [cm]$')
@@ -87,13 +87,13 @@ if not os.path.isdir(s_path_to_plots):
 f_s1_correction.savefig('%ss1_pos_correction.png' % (s_path_to_plots))
 f_s2_correction.savefig('%ss2_pos_correction.png' % (s_path_to_plots))
 
-print s1_r2_bin_edges
 
 d_corrections = {}
 d_corrections['s1'] = {}
 d_corrections['s1']['r2_bin_edges'] = s1_r2_bin_edges
 d_corrections['s1']['z_bin_edges'] = s1_z_bin_edges
 d_corrections['s1']['map'] = d_correction_maps['FastS1LCERZMap']['map']
+
 
 d_corrections['s2'] = {}
 d_corrections['s2']['x_bin_edges'] = s2_x_bin_edges
