@@ -382,7 +382,7 @@ __global__ void gpu_full_observables_production_with_log_hist(curandState *state
         
         
                 // radial cut (42 cm)
-                if ((powf(mc_x, 2) + powf(mc_y, 2)) > powf(42., 2))
+                if ((powf(mc_x, 2) + powf(mc_y, 2)) > powf(36.94, 2))
                 {
                     state[iteration] = s;
                     continue;
@@ -894,7 +894,7 @@ __global__ void gpu_full_observables_production_with_arrays(curandState *state, 
         
         
                 // radial cut (36.94 cm)
-                if ((powf(mc_x, 2) + powf(mc_y, 2)) > powf(42., 2))
+                if ((powf(mc_x, 2) + powf(mc_y, 2)) > powf(36.94, 2))
                 {
                     state[iteration] = s;
                     continue;

@@ -12,7 +12,7 @@ l_energy_settings = [300, 0, 70]
 l_energy_settings_yield_plots = [100, 2, 20]
 l_energy_settings_uniform_nr = [140, 0, 70]
 
-num_bins = 40
+num_bins = 30
 l_s1_settings = [num_bins, 1, 100]
 l_s2_settings = [num_bins, 57, 5000]
 l_log_settings = [num_bins, 0.5, 2.5]
@@ -33,10 +33,10 @@ d_cathode_voltages_to_field = {12:120} # in kV:V/cm
 
 
 # detector paramaters
-max_r = 42. # 47.9 # cm
+max_r = 36.94 #42. # cm
 #max_r_fv = 39.85 # 47.9 # cm
-min_z = -83.45 # -95
-max_z = -13.4 # -10
+min_z = -83.45
+max_z = -13.4
 
 # cylinder parameters
 max_r_cylinder = 36.94 # cm

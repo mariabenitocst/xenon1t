@@ -467,8 +467,10 @@ class nr_analysis_xe1t(object):
         self.a_s2bs_lb_smearing = np.asarray(d_bias_smearing['s2']['lb_smearing'], dtype=np.float32)
         self.a_s2bs_ub_smearing = np.asarray(d_bias_smearing['s2']['ub_smearing'], dtype=np.float32)
 
-
-        d_acceptances = pickle.load(open('%sacceptances_wimps.p' % (config_xe1t.path_to_fit_inputs), 'r'))
+        if not self.identifier == 'ambe':
+            d_acceptances = pickle.load(open('%sacceptances_wimps.p' % (config_xe1t.path_to_fit_inputs), 'r'))
+        else:
+            d_acceptances = pickle.load(open('%sacceptances_ambe.p' % (config_xe1t.path_to_fit_inputs), 'r'))
         s_acceptance = ''
 
         # PF acceptance

@@ -81,7 +81,7 @@ d_data_information['num_data_pts'] = len(d_data_information['a_s1_data'])
 
 
 d_plotting_information = current_analysis.prepare_gpu()
-
+#print d_plotting_information['gpu_s1pf_lb_acc']
 
 
 # create figure and give settings for space
@@ -228,7 +228,8 @@ for i, d_sampler_values in tqdm.tqdm(enumerate(current_analysis.yield_unfixed_pa
     
     # scale_factor for histograms
     #print scale_par, d_plotting_information['num_data_pts'], float(np.sum(l_dfs[i]['s1_hist']))
-    scaling_factor_for_histogram = d_sampler_values['scale_par']*d_data_information['num_data_pts']/float(np.sum(l_dfs[i]['s1_hist']))*mc_bin_number_multiplier
+    #scaling_factor_for_histogram = d_sampler_values['scale_par']*d_data_information['num_data_pts']/float(np.sum(l_dfs[i]['s1_hist']))*mc_bin_number_multiplier
+    scaling_factor_for_histogram = d_sampler_values['scale_par']*d_data_information['num_data_pts']/float(num_mc_events)*mc_bin_number_multiplier
     
     l_dfs[i]['s1_hist'] *= scaling_factor_for_histogram
     

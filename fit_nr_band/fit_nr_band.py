@@ -974,7 +974,8 @@ class fit_nr(object):
         #prior_ln_likelihood += self.get_prior_log_likelihood_greater_than_zero(gamma)
         #prior_ln_likelihood += self.get_prior_log_likelihood_greater_than_zero(kappa)
 
-        prior_ln_likelihood += self.get_prior_log_likelihood_probability(scale_par)
+        #prior_ln_likelihood += self.get_prior_log_likelihood_probability(scale_par)
+        prior_ln_likelihood += self.get_prior_log_likelihood_greater_than_zero(scale_par)
 
 
 
@@ -1089,8 +1090,9 @@ class fit_nr(object):
             return -np.inf
 
 
-        scale_par *= float(self.num_mc_events*self.num_loops) / sum_mc
-
+        #scale_par *= float(self.num_mc_events*self.num_loops) / sum_mc
+        #a_s1_s2_mc = np.multiply(a_s1_s2_mc, float(scale_par)*self.d_coincidence_data_information['num_data_pts']/float(self.num_mc_events*self.num_loops))
+        
         a_s1_s2_mc = np.multiply(a_s1_s2_mc, float(scale_par)*self.d_coincidence_data_information['num_data_pts']/float(self.num_mc_events*self.num_loops))
 
         # likelihood for band
@@ -1258,7 +1260,7 @@ class fit_nr(object):
                 # always the last indices so move back by
                 # number of degree settings multiplied by
                 # number of cathode settings
-                d_variable_arrays[par_name] = np.random.normal(a_free_parameters[count_free_pars], .05, size=num_walkers)
+                d_variable_arrays[par_name] = np.random.normal(a_free_parameters[count_free_pars], a_free_parameters[count_free_pars]*0.3, size=num_walkers)
                 count_free_pars += 1
                 
 
@@ -1351,7 +1353,7 @@ class fit_nr(object):
             if self.fit_type == 'sb':
                 # 1287.7
                 # free
-                a_free_parameter_guesses = [1.27095420e-02, 1.35677669e-01, 3.49169798e-01, 2.62539793e-04, 6.75829997e-01, 8.50589091e-01, 9.14878248e-01, -3.51008915e-01, 3.17014870e-02, 9.63416494e-01]
+                a_free_parameter_guesses = [0.01211766, 0.13303618, 0.37236719, 0.36132278, 0.87950379, 0.22178676, 0.78054535, 0.10472306, 0.04674879, 2.73322513]
                 # 282.8
                 # prior on gamma and kappa
                 #a_free_parameter_guesses = [0.01272,  0.1368, 0.0064, 0.0631, 0.7894 , 0.2446, -3., 0.937, 0.0319, 0.99]
@@ -1480,9 +1482,8 @@ class fit_nr(object):
 
         if self.fit_type == 'sb' and a_free_par_guesses == None:
             #a_guesses = [0.01181812,  0.13457987, 0.00640899, 0.06315222, 0.7894911 , 0.24468025, -1.67785755, 0.8232389, 0.03198071, 0.95490475]
-            # 1285
             # prior on gamma and kappa
-            a_guesses = [1.27095420e-02, 1.35677669e-01, 3.49169798e-01, 2.62539793e-04, 6.75829997e-01, 8.50589091e-01, 9.14878248e-01, -3.51008915e-01, 3.17014870e-02, 9.63416494e-01] # from diff ev
+            a_guesses = [0.01211766, 0.13303618, 0.37236719, 0.36132278, 0.87950379, 0.22178676, 0.78054535, 0.10472306, 0.04674879, 2.73322513] # from diff ev
             #a_guesses = [0.01272,  0.1368, 0.0064, 0.0631, 0.7894 , 0.2446, -3., 0.937, 0.0319, 0.99] # from corner plot
             
             
@@ -1533,22 +1534,22 @@ if __name__ == '__main__':
     d_coincidence_data['degree_setting'] = -4
     d_coincidence_data['cathode_setting'] = 12
     
-    test = fit_nr(d_coincidence_data, 'sb', num_mc_events=2e6, l_gpus=[0, 1, 2, 3, 4, 5], num_loops=4*4)
+    test = fit_nr(d_coincidence_data, 'sb', num_mc_events=2e6, l_gpus=[0, 1, 2, 3, 4, 5], num_loops=4)
 
     # ln_likelihood_full_matching_band(self, w_value, alpha, zeta, beta, gamma, delta, kappa, eta, lamb, g1_value, extraction_efficiency_value, gas_gain_mean_value, gas_gain_width_value, dpe_prob, s1_bias_par, s1_smearing_par, s2_bias_par, s2_smearing_par, acceptance_par, cut_acceptance_par, prob_bkg, scale_par, d_gpu_local_info, draw_fit=False)
     
     l_parameters = []
-    # [0.01235837, 0.13115436, 0.15088735, 0.01028476, 0.72494301, 0.24016923, 1.94559642, -0.96326541, 0.0303482, 0.1937021, 0.95437603] # 1174.1
+    # [0.01211766, 0.13303618, 0.37236719, 0.36132278, 0.87950379, 0.22178676, 0.78054535, 0.10472306, 0.04674879, 2.73322513] # 997
     l_parameters += [test.nest_lindhard_model['values']['w_value'], test.nest_lindhard_model['values']['alpha'], test.nest_lindhard_model['values']['zeta'], test.nest_lindhard_model['values']['beta'], test.nest_lindhard_model['values']['gamma'], test.nest_lindhard_model['values']['delta'], test.nest_lindhard_model['values']['kappa'], test.nest_lindhard_model['values']['eta'], test.nest_lindhard_model['values']['lambda']]
-    l_parameters += [test.g1_value, test.extraction_efficiency_value, test.gas_gain_value, test.gas_gain_width, 0.2, 0.15088735, 0.01028476, 0.72494301, 0.24016923, 1.0, -0.96326541, 0.0303482, 0.95437603]
-    test.gpu_pool.map(test.wrapper_ln_likelihood_full_matching_band, [l_parameters])
+    l_parameters += [test.g1_value, test.extraction_efficiency_value, test.gas_gain_value, test.gas_gain_width, 0.2, 0.37236719, 0.36132278, 0.87950379, 0.22178676, 0.78054535, 0.10472306, 0.04674879, 2.73322513]
+    #test.gpu_pool.map(test.wrapper_ln_likelihood_full_matching_band, [l_parameters])
     
     
-    #a_free_par_bounds = [(0.001, 0.04), (0.1, 0.2), (0, 1.), (0, 1.), (0, 1.), (0, 1.), (0, 1), (-3, 3), (0., 0.5), (0.8, 1.)]
+    #a_free_par_bounds = [(0.001, 0.04), (0.1, 0.2), (0, 1.), (0, 1.), (0, 1.), (0, 1.), (0, 1), (-3, 3), (0., 0.5), (0.5, 8.)]
     #test.differential_evolution_minimizer_free_pars(a_free_par_bounds, maxiter=150, popsize=15, tol=0.01)
     
     #test.suppress_likelihood()
-    test.run_mcmc(num_steps=40, num_walkers=256)
+    test.run_mcmc(num_steps=160, num_walkers=256)
     
     test.close_workers()
 

@@ -70,8 +70,8 @@ if not b_wimp_input:
 else:
     fig_pf_s1.savefig('%spf_acceptance_s1_wimps.png' % (s_path_to_plots))
 
-#print d_acceptances['pf_s1']['x_values']
-#print d_acceptances['pf_s1']['y_values_lower']
+print d_acceptances['pf_s1']['x_values']
+print d_acceptances['pf_s1']['y_values_lower']
 
 if not b_wimp_input:
     pickle.dump(d_acceptances, open('%sacceptances_ambe.p' % (s_path_to_pickle_save), 'w'))
