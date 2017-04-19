@@ -93,7 +93,7 @@ else:
 
 
 num_steps_nest = 5000
-num_steps_band = 100000
+num_steps_band = 300
 num_steps_to_pull_from = 1000
 
 
@@ -370,6 +370,8 @@ if not os.path.exists(s_path_for_save):
 plt.tight_layout()
 
 d_best_fit_yields = {}
+d_best_fit_yields['energy'] = a_energies
+
 d_best_fit_yields['py_median'] = d_yields[cathode_setting]['a_py_median_band']
 d_best_fit_yields['py_minus_one_sigma'] = d_yields[cathode_setting]['a_py_lb_band']
 d_best_fit_yields['py_plus_one_sigma'] = d_yields[cathode_setting]['a_py_ub_band']

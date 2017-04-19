@@ -70,9 +70,9 @@ else:
 
 
 
-num_dim = 21
+num_dim = 22
 
-l_par_names = ['w_value', 'alpha', 'zeta', 'beta', 'gamma', 'delta', 'kappa', 'eta', 'lambda', 'g1_value', 'extraction_efficiency_value', 'gas_gain_mean_value', 'gas_gain_width_value', 'dpe_prob', 's1_bias_par', 's1_smearing_par', 's2_bias_par', 's2_smearing_par', 'acceptance_par'] + ['prob_bkg', 'scale_par']
+l_par_names = ['w_value', 'alpha', 'zeta', 'beta', 'gamma', 'delta', 'kappa', 'eta', 'lambda', 'g1_value', 'extraction_efficiency_value', 'gas_gain_mean_value', 'gas_gain_width_value', 'dpe_prob', 's1_bias_par', 's1_smearing_par', 's2_bias_par', 's2_smearing_par', 'acceptance_par', 'cut_acceptance_par'] + ['prob_bkg', 'scale_par']
 
 
 assert num_dim == len(l_par_names)
@@ -95,7 +95,7 @@ batch_size = int(tot_number_events/40)
 num_batches = int(tot_number_events/batch_size/2)
 d_gr_stats = {}
 
-l_free_pars = ['gamma', 'kappa', 's1_bias_par', 's1_smearing_par', 's2_bias_par', 's2_smearing_par', 'acceptance_par', 'prob_bkg', 'scale_par']
+l_free_pars = ['gamma', 'kappa', 's1_bias_par', 's1_smearing_par', 's2_bias_par', 's2_smearing_par', 'acceptance_par', 'cut_acceptance_par', 'prob_bkg', 'scale_par']
 
 l_colors = plt.get_cmap('jet')(np.linspace(0, 1.0, len(l_free_pars)))
 

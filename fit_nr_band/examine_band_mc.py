@@ -37,46 +37,48 @@ ax_mc.plot(d_ambe_mc['energy'], d_ambe_mc['counts'], marker='.', linestyle='')
 
 """
 
-# need the following to randomly sample from the given histogram
-"""
-bin_width = d_ambe_mc['energy'][1] - d_ambe_mc['energy'][0]
-num_draws = 1000000
-
-cdf = np.cumsum(d_ambe_mc['counts'])
-cdf = cdf / cdf[-1]
-values = np.random.rand(num_draws)
-value_bins = np.searchsorted(cdf, values)
-random_from_cdf = d_ambe_mc['energy'][value_bins]
-
-a_random_energies = np.zeros(num_draws)
-for i in tqdm.tqdm(xrange(num_draws)):
-    current_random_num = np.random.random()*bin_width + random_from_cdf[i]
-    
-    # need to cover edge case of zero bin
-    if current_random_num < 0:
-        current_random_num = -current_random_num
-    
-    a_random_energies[i] = current_random_num
-
-print a_random_energies
-"""
 
 
 
+#s_path_to_input = './resources/ambe_mc_170301.p'
+#df_ambe_mc = pickle.load(open(s_path_to_input, 'rb'))
 
 s_path_to_input = './resources/ambe_mc.p'
-df_ambe_mc = pickle.load(open(s_path_to_input, 'rb'))
+#s_path_to_input = './resources/ambe_mc_3mm.p'
+#s_path_to_input = './resources/ambe_mc_matt.p'
+df_ambe_mc = pd.DataFrame(pickle.load(open(s_path_to_input, 'rb')))
+
 
 df_ambe_mc['X'] = df_ambe_mc['X']/10.
 df_ambe_mc['Y'] = df_ambe_mc['Y']/10.
 df_ambe_mc['Z'] = df_ambe_mc['Z']/10.
+#df_ambe_mc['Z'] = df_ambe_mc['zpri']/10.
+#print list(df_ambe_mc)
+df_ambe_mc['distance_to_source'] = ((df_ambe_mc['X']-55.96)**2. + (df_ambe_mc['Y']-43.72)**2. + (df_ambe_mc['Z']+50.)**2.)**0.5
 
-df_ambe_mc = df_ambe_mc[(df_ambe_mc['Ed'] < 100) & ((df_ambe_mc['X']**2. + df_ambe_mc['Y']**2.) < config_xe1t.max_r**2.) & (df_ambe_mc['Z'] < config_xe1t.max_z) & (config_xe1t.min_z < df_ambe_mc['Z'])]
+#print df_ambe_mc['Z']
+#print df_ambe_mc['zpri']
+#print df_ambe_mc['FiducialVolumeAmBe']
+
+df_ambe_mc = df_ambe_mc[(df_ambe_mc['Ed'] > 0) & (df_ambe_mc['Ed'] < 100)]
+#df_low_e = df_ambe_mc[(df_ambe_mc['Ed'] > 0.01) & (df_ambe_mc['Ed'] < 0.1)]
+#print len(df_low_e)
+#print df_low_e['Ed']
+
+# AmBe optimized
+#df_ambe_mc = df_ambe_mc[((df_ambe_mc['X']**2. + df_ambe_mc['Y']**2.) < config_xe1t.max_r**2.) & (df_ambe_mc['Z'] < config_xe1t.max_z) & (config_xe1t.min_z < df_ambe_mc['Z']) & (df_ambe_mc['distance_to_source'] < 80.)]
+df_ambe_mc = df_ambe_mc[((df_ambe_mc['X']**2. + df_ambe_mc['Y']**2.) < config_xe1t.max_r**2.) & (df_ambe_mc['Z'] < config_xe1t.max_z) & (config_xe1t.min_z < df_ambe_mc['Z']) & (df_ambe_mc['distance_to_source'] < 80.)]
+#df_ambe_mc = df_ambe_mc[df_ambe_mc['FiducialVolumeAmBe']]
+
+# cylinder
+#df_ambe_mc = df_ambe_mc[((df_ambe_mc['X']**2. + df_ambe_mc['Y']**2.) < config_xe1t.max_r_cylinder**2.) & (df_ambe_mc['Z'] < config_xe1t.max_z_cylinder) & (config_xe1t.min_z_cylinder < df_ambe_mc['Z'])]
+#df_ambe_mc = df_ambe_mc[((df_ambe_mc['X']**2. + df_ambe_mc['Y']**2.) < config_xe1t.max_r**2.) & (df_ambe_mc['Z'] < config_xe1t.max_z) & (config_xe1t.min_z < df_ambe_mc['Z'])]
+
 
 d_ambe_mc = {}
 d_ambe_mc['energy'] = np.asarray(df_ambe_mc['Ed'])
 
-nb_energy = 300
+nb_energy = 3000
 lb_energy = 0
 ub_energy = 100
 

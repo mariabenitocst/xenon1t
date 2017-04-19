@@ -19,18 +19,22 @@ import cPickle as pickle
 import neriX_analysis
 
 
-s_path_to_input = './resources/MCERBandForNRFitting_prel.root'
+s_path_to_input = './resources/PointEstimate_lax0.9.5_V10_170324_LogSpace.root'
+#s_path_to_input = './resources/MCERBandForNRFitting_prel.root'
 s_path_to_plots = './plots/supporting/er_band/'
 s_path_to_pickle_save = './fit_inputs/'
 
 f_er = root_open(s_path_to_input, 'read')
-"""
-KEY: TH2D	hmcband;1
-"""
 
-h_er = f_er.hmcband
-a_er = neriX_analysis.convert_2D_hist_to_matrix(h_er)
-num_random_events = int(np.sum(a_er))
+# MCERBandForNRFitting_prel.root
+#h_er = f_er.hmcband
+
+# PointEstimate_lax0.9.5_V10_170324_LogSpace.root
+h_er = f_er.hband
+
+#a_er = neriX_analysis.convert_2D_hist_to_matrix(h_er)
+#num_random_events = int(np.sum(a_er))
+num_random_events = int(1e7)
 
 a_s1 = np.zeros(num_random_events, dtype=np.float32)
 a_log = np.zeros(num_random_events, dtype=np.float32)
@@ -38,7 +42,7 @@ a_log = np.zeros(num_random_events, dtype=np.float32)
 x = np.asarray(0, dtype=np.float64)
 y = np.asarray(0, dtype=np.float64)
 
-for i in xrange(num_random_events):
+for i in tqdm.tqdm(xrange(num_random_events)):
     h_er.GetRandom2(x, y)
     a_s1[i], a_log[i] = float(x), float(y)
 

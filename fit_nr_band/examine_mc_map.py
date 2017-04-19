@@ -57,12 +57,20 @@ s_path_to_pickle_save = './fit_inputs/'
 
 d_mc_maps_full = pickle.load(open(s_path_to_input, 'rb'))
 
+print list(d_mc_maps_full)
+
 # convert to cm
 d_mc_maps_full['X'] = d_mc_maps_full['X']/10.
 d_mc_maps_full['Y'] = d_mc_maps_full['Y']/10.
 d_mc_maps_full['Z'] = d_mc_maps_full['Z']/10.
+d_mc_maps_full['distance_to_source'] = ((d_mc_maps_full['X']-55.96)**2. + (d_mc_maps_full['Y']-43.72)**2. + (d_mc_maps_full['Z']+50.)**2.)**0.5
 
-d_mc_maps_full = d_mc_maps_full[(d_mc_maps_full['Ed'] < 100) & ((d_mc_maps_full['X']**2. + d_mc_maps_full['Y']**2.) < config_xe1t.max_r**2.) & (d_mc_maps_full['Z'] < config_xe1t.max_z) & (config_xe1t.min_z < d_mc_maps_full['Z'])]
+# AmBe optimized
+d_mc_maps_full = d_mc_maps_full[(d_mc_maps_full['Ed'] < 100) & ((d_mc_maps_full['X']**2. + d_mc_maps_full['Y']**2.) < config_xe1t.max_r**2.) & (d_mc_maps_full['Z'] < config_xe1t.max_z) & (config_xe1t.min_z < d_mc_maps_full['Z']) & (d_mc_maps_full['distance_to_source'] < 80.)]
+
+# cylinder
+#d_mc_maps_full = d_mc_maps_full[(d_mc_maps_full['Ed'] < 100) & ((d_mc_maps_full['X']**2. + d_mc_maps_full['Y']**2.) < config_xe1t.max_r**2.) & (d_mc_maps_full['Z'] < config_xe1t.max_z) & (config_xe1t.min_z < d_mc_maps_full['Z'])]
+#d_mc_maps_full = d_mc_maps_full[(d_mc_maps_full['Ed'] < 100) & ((d_mc_maps_full['X']**2. + d_mc_maps_full['Y']**2.) < config_xe1t.max_r**2.) & (d_mc_maps_full['Z'] < config_xe1t.max_z) & (config_xe1t.min_z < d_mc_maps_full['Z'])]
 
 d_mc_maps = {}
 d_mc_maps['energy'] = np.asarray(d_mc_maps_full['Ed'], dtype=np.float32)
@@ -85,7 +93,7 @@ a_x_y_map, a_x_bins, a_y_bins = np.histogram2d(d_mc_maps['x'], d_mc_maps['y'], b
 
 fig_xy, ax_xy = plt.subplots(1)
 
-ax_xy.pcolormesh(a_x_bins, a_y_bins, a_x_y_map)
+ax_xy.pcolormesh(a_x_bins, a_y_bins, a_x_y_map.T)
 
 ax_xy.set_xlim(np.min(d_mc_maps['x']), np.max(d_mc_maps['x']))
 ax_xy.set_ylim(np.min(d_mc_maps['y']), np.max(d_mc_maps['y']))

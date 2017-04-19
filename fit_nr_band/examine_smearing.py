@@ -17,43 +17,99 @@ import cPickle as pickle
 
 import pandas as pd
 
-s_path_to_input = './resources/bias_smearing.p'
+s_path_to_input_ambe = './resources/bias_smearing_ambe.p'
+s_path_to_input_wimps = './resources/bias_smearing_wimps.p'
 s_path_to_plots = './plots/supporting/bias_and_smearing/'
 s_path_to_pickle_save = './fit_inputs/'
 
-d_smearing_input = pickle.load(open(s_path_to_input, 'rb'))
+d_smearing_input_ambe = pickle.load(open(s_path_to_input_ambe, 'rb'))
+d_smearing_input_wimps = pickle.load(open(s_path_to_input_wimps, 'rb'))
 # ['s2smearings', 's1smearings', 's1s', 's1bias', 's2s', 's2bias', 's2smearing', 's1smearing']
 
 
 
 
-df_smearing_input = pd.DataFrame(d_smearing_input)
-d_smearing_input = df_smearing_input[(df_smearing_input['s1s'] <= config_xe1t.l_s1_settings[2])]
+df_smearing_input_ambe = pd.DataFrame(d_smearing_input_ambe)
+df_smearing_input_wimps = pd.DataFrame(d_smearing_input_wimps)
+df_smearing_input_ambe = df_smearing_input_ambe[(df_smearing_input_ambe['s1s'] <= config_xe1t.l_s1_settings[2])]
+df_smearing_input_wimps = df_smearing_input_wimps[(df_smearing_input_wimps['s1s'] <= config_xe1t.l_s1_settings[2])]
 
-num_pts_to_keep_spline = 50
-step_size_s1 = int(len(d_smearing_input['s1s']) / num_pts_to_keep_spline)
+num_pts_to_keep_spline = 100
+step_size_s1 = int(len(df_smearing_input_ambe['s1s']) / num_pts_to_keep_spline)
 
+l_s1s = []
+l_s1_lb_smearing = []
+l_s1_ub_smearing = []
+l_s1_lb_bias = []
+l_s1_ub_bias = []
 
+for i in xrange(num_pts_to_keep_spline):
+    l_s1s.append(df_smearing_input_ambe['s1s'][i*step_size_s1])
+    l_s1_lb_smearing.append(min(df_smearing_input_ambe['s1smearing_mins'][i*step_size_s1], df_smearing_input_wimps['s1smearing_mins'][i*step_size_s1]))
+    l_s1_ub_smearing.append(max(df_smearing_input_ambe['s1smearing_maxs'][i*step_size_s1], df_smearing_input_wimps['s1smearing_maxs'][i*step_size_s1]))
+    l_s1_lb_bias.append(min(df_smearing_input_ambe['s1bias_mins'][i*step_size_s1], df_smearing_input_wimps['s1bias_mins'][i*step_size_s1]))
+    l_s1_ub_bias.append(max(df_smearing_input_ambe['s1bias_maxs'][i*step_size_s1], df_smearing_input_wimps['s1bias_maxs'][i*step_size_s1]))
+    
 
 d_smearing = {}
 d_smearing['s1'] = {}
+"""
 d_smearing['s1']['points'] = np.asarray(d_smearing_input['s1s'][::step_size_s1], dtype=np.float32)
 d_smearing['s1']['lb_smearing'] = np.asarray(d_smearing_input['s1smearing_mins'][::step_size_s1], dtype=np.float32)
 d_smearing['s1']['ub_smearing'] = np.asarray(d_smearing_input['s1smearing_maxs'][::step_size_s1], dtype=np.float32)
 d_smearing['s1']['lb_bias'] = np.asarray(d_smearing_input['s1bias_mins'][::step_size_s1], dtype=np.float32)
 d_smearing['s1']['ub_bias'] = np.asarray(d_smearing_input['s1bias_maxs'][::step_size_s1], dtype=np.float32)
+"""
+d_smearing['s1']['points'] = np.asarray(l_s1s, dtype=np.float32)
+d_smearing['s1']['lb_smearing'] = np.asarray(l_s1_lb_smearing, dtype=np.float32)
+d_smearing['s1']['ub_smearing'] = np.asarray(l_s1_ub_smearing, dtype=np.float32)
+d_smearing['s1']['lb_bias'] = np.asarray(l_s1_lb_bias, dtype=np.float32)
+d_smearing['s1']['ub_bias'] = np.asarray(l_s1_ub_bias, dtype=np.float32)
+
+
+
+
 
 # remake only looking at S2
-d_smearing_input = df_smearing_input[(df_smearing_input['s2s'] <= config_xe1t.l_s2_settings[2])]
+df_smearing_input_ambe = pd.DataFrame(d_smearing_input_ambe)
+df_smearing_input_wimps = pd.DataFrame(d_smearing_input_wimps)
+df_smearing_input_ambe = df_smearing_input_ambe[(df_smearing_input_ambe['s2s'] <= config_xe1t.l_s2_settings[2])]
+df_smearing_input_wimps = df_smearing_input_wimps[(df_smearing_input_wimps['s2s'] <= config_xe1t.l_s2_settings[2])]
 
-step_size_s2 = int(len(d_smearing_input['s2s']) / num_pts_to_keep_spline)
+step_size_s2 = int(len(df_smearing_input_ambe['s2s']) / num_pts_to_keep_spline)
 
+l_s2s = []
+l_s2_lb_smearing = []
+l_s2_ub_smearing = []
+l_s2_lb_bias = []
+l_s2_ub_bias = []
+
+for i in xrange(num_pts_to_keep_spline):
+    l_s2s.append(df_smearing_input_ambe['s2s'][i*step_size_s2])
+    l_s2_lb_smearing.append(min(df_smearing_input_ambe['s2smearing_mins'][i*step_size_s2], df_smearing_input_wimps['s2smearing_mins'][i*step_size_s2]))
+    l_s2_ub_smearing.append(max(df_smearing_input_ambe['s2smearing_maxs'][i*step_size_s2], df_smearing_input_wimps['s2smearing_maxs'][i*step_size_s2]))
+    l_s2_lb_bias.append(min(df_smearing_input_ambe['s2bias_mins'][i*step_size_s2], df_smearing_input_wimps['s2bias_mins'][i*step_size_s2]))
+    l_s2_ub_bias.append(max(df_smearing_input_ambe['s2bias_maxs'][i*step_size_s2], df_smearing_input_wimps['s2bias_maxs'][i*step_size_s2]))
+
+"""
 d_smearing['s2'] = {}
 d_smearing['s2']['points'] = np.asarray(d_smearing_input['s2s'][::step_size_s2], dtype=np.float32)
 d_smearing['s2']['lb_smearing'] = np.asarray(d_smearing_input['s2smearing_mins'][::step_size_s2], dtype=np.float32)
 d_smearing['s2']['ub_smearing'] = np.asarray(d_smearing_input['s2smearing_maxs'][::step_size_s2], dtype=np.float32)
 d_smearing['s2']['lb_bias'] = np.asarray(d_smearing_input['s2bias_mins'][::step_size_s2], dtype=np.float32)
 d_smearing['s2']['ub_bias'] = np.asarray(d_smearing_input['s2bias_maxs'][::step_size_s2], dtype=np.float32)
+"""
+
+d_smearing['s2'] = {}
+d_smearing['s2']['points'] = np.asarray(l_s2s, dtype=np.float32)
+d_smearing['s2']['lb_smearing'] = np.asarray(l_s2_lb_smearing, dtype=np.float32)
+d_smearing['s2']['ub_smearing'] = np.asarray(l_s2_ub_smearing, dtype=np.float32)
+d_smearing['s2']['lb_bias'] = np.asarray(l_s2_lb_bias, dtype=np.float32)
+d_smearing['s2']['ub_bias'] = np.asarray(l_s2_ub_bias, dtype=np.float32)
+
+
+
+
 
 print len(d_smearing['s1']['points']), len(d_smearing['s2']['points'])
 

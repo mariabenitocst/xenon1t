@@ -7,6 +7,7 @@
 // use this in its place if that is the case
 
 
+/*
 float log_likelihood_matching_uncertainty(float data, float scale, int num_mc_events)
 {
 	data = (int)round(data);
@@ -104,7 +105,7 @@ float log_likelihood_normalized_pdf(float *a_flat_data, float *a_flat_mc_normali
 
 
 
-
+//160402
 float smart_log_likelihood(float *a_flat_data, float *a_flat_mc, int num_bins, int num_mc_events, float confidence_interval)
 {
 
@@ -119,12 +120,13 @@ float smart_log_likelihood(float *a_flat_data, float *a_flat_mc, int num_bins, i
 	{
 		
 		if (a_flat_data[bin_number] <= 3) continue;
-		/*
-		if (a_flat_data[bin_number] != 0 && a_flat_mc[bin_number] == 0)
+		
+		else if (a_flat_data[bin_number] != 0 && a_flat_mc[bin_number] == 0)
 		{
+            //continue;
 			total_log_likelihood += lgamma(num_mc_events+1.0) - lgamma(a_flat_data[bin_number]+1.0) - lgamma(num_mc_events-a_flat_data[bin_number]+1.0) + (a_flat_data[bin_number])*log(binom_prob) + (num_mc_events-a_flat_data[bin_number])*log(1-binom_prob);
 		}
-        */
+        
 		if (a_flat_data[bin_number] == 0 && a_flat_mc[bin_number] == 0)
 			continue;
 		else
@@ -137,6 +139,28 @@ float smart_log_likelihood(float *a_flat_data, float *a_flat_mc, int num_bins, i
 	return total_log_likelihood;
 }
 
+*/
 
+
+float smart_log_likelihood(float *a_flat_data, float *a_flat_mc, int num_bins, float small_number)
+{
+
+	float total_log_likelihood = 0.;
+    
+    // add small number to each mc bin
+    // to avoid negative infinity
+    //float small_number = 0.001;
+	
+	for (int bin_number=0; bin_number < num_bins; bin_number++)
+	{
+    
+        if (a_flat_data[bin_number] <= 1 && a_flat_mc[bin_number] < 0.5) continue;
+        //if (a_flat_data[bin_number] <= 1) continue;
+		
+        total_log_likelihood += a_flat_data[bin_number]*log((a_flat_mc[bin_number]+small_number)) - (a_flat_mc[bin_number]+small_number) - lgamma(a_flat_data[bin_number]+1.0);
+			
+	}
+	return total_log_likelihood;
+}
 
 
