@@ -157,10 +157,14 @@ class fit_pmt_gain(object):
             
             self.file_identifier = self.filename[-9:]
             
+            self.d_bkg_fit = pickle.load(open('./bkg_results/bkg_%s.p' % (filename), 'r'))
+            self.b_nerix_file = False
+            
         else:
             self.d_fit_files['a_integral'] = pickle.load(open('%s%s.p' % (self.data_dir, self.filename), 'r'))
         
             self.file_identifier = self.filename
+            self.b_nerix_file = True
         
         num_bins_uc = 150
         num_bins_nerix = 100
@@ -168,26 +172,23 @@ class fit_pmt_gain(object):
         if b_use_cascade_model:
             if self.file_identifier == '0062_0061':
                 self.d_fit_files['settings'] = [num_bins_uc, -1e6, 2e7]
-                #self.a_free_par_guesses = [9.70436881e-01, 5.37952400e+00, 2.62537293e-01, 6.76344609e-01, -4.26693497e+04, 2.49885801e+05, 3.70290616e+05, 3.88879792e-01, 1.13371514e+00, 1.00044607e+00]
-                # 591
-                #[9.94483485e-01, 5.39660840e+00, 2.74193444e-01, 6.74188193e-01, -2.72858245e+04, 2.55464134e+05, 5.09850595e+05, 2.92661268e-01, 1.10827694e+00, 9.98743490e-01]
-                self.a_free_par_guesses = [9.94483485e-01, 5.39660840e+00, 2.74193444e-01, 6.74188193e-01, -2.72858245e+04, 2.55464134e+05, 5.09850595e+05, 2.92661268e-01, 1.10827694e+00, 9.98743490e-01]
+                self.a_free_par_guesses = [9.94483485e-01, 5.39660840e+00, 2.74193444e-01, 6.74188193e-01, -2.72858245e+04, 2.55464134e+05, 1.10827694e+00, 9.98743490e-01]
             
             elif self.file_identifier == '0066_0065':
                 self.d_fit_files['settings'] = [num_bins_uc, -1e6, 1.2e7]
-                self.a_free_par_guesses = [9.98953107e-01, 4.49066329e+00, 2.88433036e-01, 7.77393348e-01, -6.23872943e+03, 2.64849398e+05, 8.97593767e+05, 1.89651764e-01, 1.03030851e+00, 1.00633986e+00] # minimizer cascade fit
+                self.a_free_par_guesses = [9.98953107e-01, 4.49066329e+00, 2.88433036e-01, 7.77393348e-01, -6.23872943e+03, 2.64849398e+05, 1.03030851e+00, 1.00633986e+00] # minimizer cascade fit
             
             elif self.file_identifier == '0067_0068':
                 self.d_fit_files['settings'] = [num_bins_uc, -1e6, 7.5e6]
-                self.a_free_par_guesses = [9.76210691e-01, 4.41228233e+00, 2.66769335e-01, 7.54360162e-01, -4.84476980e+03, 2.61980430e+05, 1.66036440e+06, 1.23714517e-01, 1.03794822e+00, 1.00197087e+00]
+                self.a_free_par_guesses = [9.76210691e-01, 4.41228233e+00, 2.66769335e-01, 7.54360162e-01, -4.84476980e+03, 2.61980430e+05, 1.03794822e+00, 1.00197087e+00]
             
             elif self.file_identifier == '0071_0072':
                 self.d_fit_files['settings'] = [num_bins_uc, -1e6, 3.4e7]
-                self.a_free_par_guesses = [9.67726706e-01, 5.39970350e+00, 2.69033760e-01, 7.01130155e-01, -5.83573467e+04, 2.44553910e+05, 5.59609629e+05, 4.07751292e-01, 1.11984571e+00, 1.00314067e+00]
+                self.a_free_par_guesses = [9.67726706e-01, 5.39970350e+00, 2.69033760e-01, 7.01130155e-01, -5.83573467e+04, 2.44553910e+05, 1.11984571e+00, 1.00314067e+00]
             
             elif self.file_identifier == '0073_0074':
                 self.d_fit_files['settings'] = [num_bins_uc, -1e6, 4.2e7]
-                self.a_free_par_guesses = [9.58882064e-01, 4.66916003e+00, 7.25141044e-01, 8.16462800e-01, -7.85751104e+04, 2.42959981e+05, 6.64654589e+05, 6.08174500e-01, 1.97596250e+00, 1.00415859e+00]
+                self.a_free_par_guesses = [9.58882064e-01, 4.66916003e+00, 7.25141044e-01, 8.16462800e-01, -7.85751104e+04, 2.42959981e+05, 1.97596250e+00, 1.00415859e+00]
 
             elif self.file_identifier == 'nerix_160418_1523':
                 self.d_fit_files['settings'] = [num_bins_nerix, -5e5, 3.e6]
@@ -341,9 +342,17 @@ class fit_pmt_gain(object):
 
 
 
+    def prior_uc_bkg(self, bkg_mean, bkg_std):
+        return (scipy.stats.norm.logpdf(bkg_mean, self.d_bkg_fit['bkg_mean'], self.d_bkg_fit['bkg_mean_unc']) + scipy.stats.norm.logpdf(bkg_std, self.d_bkg_fit['bkg_std'], self.d_bkg_fit['bkg_std_unc']))
+
+
             
     def cascade_model_ln_likelihood(self, a_parameters):
-        prob_hit_first, mean_e_from_dynode, width_e_from_dynode, probability_electron_ionized, bkg_mean, bkg_std, bkg_exp, prob_exp_bkg, mean_num_pe, scale_par = a_parameters
+        if self.b_nerix_file:
+            prob_hit_first, mean_e_from_dynode, width_e_from_dynode, probability_electron_ionized, bkg_mean, bkg_std, bkg_exp, prob_exp_bkg, mean_num_pe, scale_par = a_parameters
+        else:
+            prob_hit_first, mean_e_from_dynode, width_e_from_dynode, probability_electron_ionized, bkg_mean, bkg_std, mean_num_pe, scale_par = a_parameters
+            bkg_exp, prob_exp_bkg = 1, 1e-20
 
         ln_prior = 0
         ln_likelihood = 0
@@ -353,9 +362,13 @@ class fit_pmt_gain(object):
         ln_prior += self.prior_greater_than_0(width_e_from_dynode)
         ln_prior += self.prior_greater_than_0(bkg_std)
         ln_prior += self.prior_greater_than_0(mean_num_pe)
-        ln_prior += self.prior_greater_than_0(bkg_exp)
-        ln_prior += self.prior_between_0_and_1(prob_exp_bkg)
 
+        if self.b_nerix_file:
+            ln_prior += self.prior_greater_than_0(bkg_exp)
+            ln_prior += self.prior_between_0_and_1(prob_exp_bkg)
+        else:
+            ln_prior += self.prior_uc_bkg(bkg_mean, bkg_std)
+        
         approximate_spe_mean = (mean_e_from_dynode*probability_electron_ionized)**12.
         #print approximate_spe_mean
 
@@ -376,9 +389,10 @@ class fit_pmt_gain(object):
         probability_electron_ionized = np.asarray(probability_electron_ionized, dtype=np.float32)
         bkg_mean = np.asarray(bkg_mean, dtype=np.float32)
         bkg_std = np.asarray(bkg_std, dtype=np.float32)
+
         bkg_exp = np.asarray(bkg_exp, dtype=np.float32)
         prob_exp_bkg = np.asarray(prob_exp_bkg, dtype=np.float32)
-        
+
         num_bins = np.asarray(len(self.d_fit_files['hist']), dtype=np.int32)
         bin_edges = np.asarray(self.d_fit_files['bin_edges'], dtype=np.float32)
         
@@ -512,7 +526,12 @@ class fit_pmt_gain(object):
     
     
     def draw_cascade_model_fit(self, a_parameters):
-        prob_hit_first, mean_e_from_dynode, width_e_from_dynode, probability_electron_ionized, bkg_mean, bkg_std, bkg_exp, prob_exp_bkg, mean_num_pe, scale_par = a_parameters
+        if self.b_nerix_file:
+            prob_hit_first, mean_e_from_dynode, width_e_from_dynode, probability_electron_ionized, bkg_mean, bkg_std, bkg_exp, prob_exp_bkg, mean_num_pe, scale_par = a_parameters
+        else:
+            prob_hit_first, mean_e_from_dynode, width_e_from_dynode, probability_electron_ionized, bkg_mean, bkg_std, mean_num_pe, scale_par = a_parameters
+            bkg_exp, prob_exp_bkg = 1, 1e-20
+        
         
         
         a_hist = np.zeros(len(self.d_fit_files['hist']), dtype=np.float32)
@@ -612,13 +631,13 @@ class fit_pmt_gain(object):
                 #mean_num_pe = a_sampler[i][8]
                 #scale_par = a_sampler[i][9]
             
-                if not self.file_identifier[:5] == 'nerix':
+                if not self.b_nerix_file:
                     bkg_mean = a_sampler[i][4]
                     bkg_std = a_sampler[i][5]
-                    bkg_exp = a_sampler[i][6]
-                    prob_exp_bkg = a_sampler[i][7]
-                    mean_num_pe = a_sampler[i][8]
-                    scale_par = a_sampler[i][9]
+                    bkg_exp = 1
+                    prob_exp_bkg = 1e-20
+                    mean_num_pe = a_sampler[i][6]
+                    scale_par = a_sampler[i][7]
                 else:
                     bkg_mean = a_sampler[i][4]
                     bkg_std = a_sampler[i][5]
@@ -1440,17 +1459,17 @@ if __name__ == '__main__':
     test = fit_pmt_gain(filename, gpu_number=gpu_number, num_mc_events=num_mc_events, num_loops=num_loops, b_making_comparison_plots=True)
 
     #test.draw_cascade_model_fit([9.70436881e-01, 5.37952400e+00, 2.62537293e-01, 6.76344609e-01, -4.26693497e+04, 2.49885801e+05, 3.70290616e+05, 3.88879792e-01, 1.13371514e+00, 1.00044607e+00])
-    #print test.cascade_model_ln_likelihood(test.a_free_par_guesses)
+    #print test.cascade_model_ln_likelihood([9.94483485e-01, 5.39660840e+00, 2.74193444e-01, 6.74188193e-01, -2.72858245e+04, 2.55464134e+05, 1.10827694e+00, 9.98743490e-01])
     #test.draw_cascade_model_fit(test.a_free_par_guesses)
     
     #test.draw_model_with_error_bands(num_walkers=64, num_steps_to_include=10)
     #test.draw_model_fit_with_peaks(num_walkers=64, num_steps_to_include=30)
 
     # UC
-    #a_bounds = [(0.75, 1), (4, 5.7), (0.01, 1.5), (0, 1.0), (-1e5, 1e5), (5e4, 8e5), (1e4, 2e6), (0, 0.5), (0.6, 3.), (0.9, 1.1)]
+    a_bounds = [(0.75, 1), (4, 5.7), (0.01, 1.5), (0, 1.0), (-1e5, 1e5), (5e4, 8e5), (0.6, 3.), (0.9, 1.1)]
     # neriX
     #a_bounds = [(0.5, 1), (15, 35), (0.01, 3.5), (0, 0.5), (-1e5, 1e5), (5e4, 8e5), (1e4, 2e6), (0, 0.5), (0.6, 3.), (0.9, 1.1)]
-    #test.differential_evolution_minimizer(a_bounds, maxiter=150, tol=0.05, popsize=20, polish=False)
+    test.differential_evolution_minimizer(a_bounds, maxiter=150, tol=0.05, popsize=20, polish=False)
 
     #test.suppress_likelihood()
     #test.run_mcmc(num_walkers=64, num_steps=1950, threads=1)
@@ -1479,7 +1498,7 @@ if __name__ == '__main__':
 
 
 
-    print test.testing_model_significance(test.d_best_fit_pars['cascade'], test.d_best_fit_pars['gaussian'], b_signal_only=False)
+    #print test.testing_model_significance(test.d_best_fit_pars['cascade'], test.d_best_fit_pars['gaussian'], b_signal_only=False)
 
 
 
