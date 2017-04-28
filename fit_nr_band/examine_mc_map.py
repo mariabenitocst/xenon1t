@@ -66,7 +66,8 @@ d_mc_maps_full['Z'] = d_mc_maps_full['Z']/10.
 d_mc_maps_full['distance_to_source'] = ((d_mc_maps_full['X']-55.96)**2. + (d_mc_maps_full['Y']-43.72)**2. + (d_mc_maps_full['Z']+50.)**2.)**0.5
 
 # AmBe optimized
-d_mc_maps_full = d_mc_maps_full[(d_mc_maps_full['Ed'] < 100) & ((d_mc_maps_full['X']**2. + d_mc_maps_full['Y']**2.) < config_xe1t.max_r**2.) & (d_mc_maps_full['Z'] < config_xe1t.max_z) & (config_xe1t.min_z < d_mc_maps_full['Z']) & (d_mc_maps_full['distance_to_source'] < 80.)]
+d_mc_maps_full = d_mc_maps_full[(d_mc_maps_full['Ed'] < 100) & ((d_mc_maps_full['X']**2. + d_mc_maps_full['Y']**2.) < config_xe1t.detector_r**2.) & (d_mc_maps_full['Z'] < config_xe1t.max_z) & (config_xe1t.min_z < d_mc_maps_full['Z']) & (d_mc_maps_full['distance_to_source'] < 80.)]
+#d_mc_maps_full = d_mc_maps_full[(d_mc_maps_full['Ed'] < 100) & ((d_mc_maps_full['X']**2. + d_mc_maps_full['Y']**2.) < config_xe1t.max_r**2.) & (d_mc_maps_full['Z'] < config_xe1t.max_z) & (config_xe1t.min_z < d_mc_maps_full['Z']) & (d_mc_maps_full['distance_to_source'] < 80.)]
 
 # cylinder
 #d_mc_maps_full = d_mc_maps_full[(d_mc_maps_full['Ed'] < 100) & ((d_mc_maps_full['X']**2. + d_mc_maps_full['Y']**2.) < config_xe1t.max_r**2.) & (d_mc_maps_full['Z'] < config_xe1t.max_z) & (config_xe1t.min_z < d_mc_maps_full['Z'])]

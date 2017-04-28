@@ -18,6 +18,7 @@ l_s2_settings = [num_bins, 57, 5000]
 l_log_settings = [num_bins, 0.5, 2.5]
 
 a_s1_bin_edges = np.logspace(np.log10(l_s1_settings[1]), np.log10(l_s1_settings[2]), l_s1_settings[0]+1, dtype=np.float32)
+#a_s1_bin_edges = np.linspace(l_s1_settings[1], l_s1_settings[2], l_s1_settings[0]+1, dtype=np.float32)
 a_log_bin_edges = np.linspace(l_log_settings[1], l_log_settings[2], num=l_log_settings[0]+1, dtype=np.float32)
 
 l_s1_settings_pl = [67, 3, 70]
@@ -30,10 +31,10 @@ l_allowed_cathode_settings = [12.]
 
 d_cathode_voltages_to_field = {12:120} # in kV:V/cm
 
-
+detector_r = 45 # double check
 
 # detector paramaters
-max_r = 36.94 #42. # cm
+max_r = 42. #36.94 #42. # cm
 #max_r_fv = 39.85 # 47.9 # cm
 min_z = -83.45
 max_z = -13.4

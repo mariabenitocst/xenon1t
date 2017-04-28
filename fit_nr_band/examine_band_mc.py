@@ -16,6 +16,7 @@ import time, tqdm
 import cPickle as pickle
 
 import pandas as pd
+from matplotlib.colors import LogNorm
 
 
 s_path_to_pickle_save = './fit_inputs/'
@@ -66,13 +67,22 @@ df_ambe_mc = df_ambe_mc[(df_ambe_mc['Ed'] > 0) & (df_ambe_mc['Ed'] < 100)]
 #print df_low_e['Ed']
 
 # AmBe optimized
+df_ambe_mc = df_ambe_mc[((df_ambe_mc['X']**2. + df_ambe_mc['Y']**2.) < config_xe1t.detector_r**2.) & (df_ambe_mc['Z'] < config_xe1t.max_z) & (config_xe1t.min_z < df_ambe_mc['Z']) & (df_ambe_mc['distance_to_source'] < 80.)]
 #df_ambe_mc = df_ambe_mc[((df_ambe_mc['X']**2. + df_ambe_mc['Y']**2.) < config_xe1t.max_r**2.) & (df_ambe_mc['Z'] < config_xe1t.max_z) & (config_xe1t.min_z < df_ambe_mc['Z']) & (df_ambe_mc['distance_to_source'] < 80.)]
-df_ambe_mc = df_ambe_mc[((df_ambe_mc['X']**2. + df_ambe_mc['Y']**2.) < config_xe1t.max_r**2.) & (df_ambe_mc['Z'] < config_xe1t.max_z) & (config_xe1t.min_z < df_ambe_mc['Z']) & (df_ambe_mc['distance_to_source'] < 80.)]
-#df_ambe_mc = df_ambe_mc[df_ambe_mc['FiducialVolumeAmBe']]
+
+#print len(df_ambe_mc['Ed'])
 
 # cylinder
 #df_ambe_mc = df_ambe_mc[((df_ambe_mc['X']**2. + df_ambe_mc['Y']**2.) < config_xe1t.max_r_cylinder**2.) & (df_ambe_mc['Z'] < config_xe1t.max_z_cylinder) & (config_xe1t.min_z_cylinder < df_ambe_mc['Z'])]
 #df_ambe_mc = df_ambe_mc[((df_ambe_mc['X']**2. + df_ambe_mc['Y']**2.) < config_xe1t.max_r**2.) & (df_ambe_mc['Z'] < config_xe1t.max_z) & (config_xe1t.min_z < df_ambe_mc['Z'])]
+
+#print np.asarray(df_ambe_mc['X'], dtype=np.float32)
+a_hist, bin_edges_energy, bin_edges_r = np.histogram2d(np.asarray(df_ambe_mc['Ed'], dtype=np.float32), np.asarray(np.asarray(df_ambe_mc['X'], dtype=np.float32)**2. + np.asarray(df_ambe_mc['Y'], dtype=np.float32)**2.), bins=40)
+for i in xrange(a_hist.shape[0]):
+    a_hist[:, i] = a_hist[:, i] / np.sum(a_hist[:, i])
+
+#ax = plt.pcolormesh(bin_edges_energy, bin_edges_r, a_hist.T, norm=LogNorm())
+#plt.show()
 
 
 d_ambe_mc = {}
@@ -115,6 +125,11 @@ ax_el.set_ylabel('$Counts$')
 
 d_ambe_mc['a_el_hist'] = np.asarray(df_el['el'], dtype=np.float32)
 d_ambe_mc['a_el_bins'] = np.asarray(bin_edges_el, dtype=np.float32)
+
+d_ambe_mc['a_energy'] = np.asarray(df_ambe_mc['Ed'], dtype=np.float32)
+d_ambe_mc['a_x'] = np.asarray(df_ambe_mc['X'], dtype=np.float32)
+d_ambe_mc['a_y'] = np.asarray(df_ambe_mc['Y'], dtype=np.float32)
+d_ambe_mc['a_z'] = np.asarray(df_ambe_mc['Z'], dtype=np.float32)
 
 fig_el.savefig('%selectron_lifetime.png' % (s_path_to_plots))
 

@@ -46,9 +46,10 @@ transparency = 0.2
 l_quantiles_for_lines_in_plot = [1, 5, 50]
 
 # num_steps_to_include is how large of sampler you keep
-num_steps_to_include = 1
-num_mc_events = int(1e5)
+num_steps_to_include = 10
+num_mc_events = int(2e6)
 device_number = 0
+b_save_array = False
 
 if(len(sys.argv) != 2):
 	print 'Usage is python compare_data_fit.py <num walkers>'
@@ -135,7 +136,13 @@ df_data['log'] = np.log10(df_data['s2']/df_data['s1'])
 df_mc = pd.DataFrame({'s1':a_s1_mc, 's2':a_s2_mc})
 df_mc['log'] = np.log10(df_mc['s2']/df_mc['s1'])
 
-
+if b_save_array:
+    d_mc = {}
+    d_mc['s1'] = a_s1_mc
+    d_mc['s2'] = a_s2_mc
+    d_mc['weight'] = a_weights
+    pickle.dump(d_mc, open('./mc_output/mc_ambe_arrays.p', 'w'))
+    del d_mc
 
 # add alii to dictionary
 d_plotting_information['fig_s1_log'] = fig_s1_log
@@ -228,7 +235,6 @@ for i, d_sampler_values in tqdm.tqdm(enumerate(current_analysis.yield_unfixed_pa
     
     # scale_factor for histograms
     #print scale_par, d_plotting_information['num_data_pts'], float(np.sum(l_dfs[i]['s1_hist']))
-    #scaling_factor_for_histogram = d_sampler_values['scale_par']*d_data_information['num_data_pts']/float(np.sum(l_dfs[i]['s1_hist']))*mc_bin_number_multiplier
     scaling_factor_for_histogram = d_sampler_values['scale_par']*d_data_information['num_data_pts']/float(num_mc_events)*mc_bin_number_multiplier
     
     l_dfs[i]['s1_hist'] *= scaling_factor_for_histogram

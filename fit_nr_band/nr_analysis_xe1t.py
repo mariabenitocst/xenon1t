@@ -16,11 +16,11 @@ import ROOT as root
 
 
 class nr_analysis_xe1t(object):
-    def __init__(self, identifier, lax_version, num_mc_events, num_walkers, num_steps_to_include, device_number=0, b_mc_paper_mode=False, wimp_mass=False):
+    def __init__(self, identifier, lax_version, num_mc_events, num_walkers, num_steps_to_include, device_number=0, b_mc_paper_mode=False, wimp_mass=False, b_conservative_acceptance_posterior=False):
     
         self.identifier = identifier
         #l_possible_identifiers = ['ambe', 'wimp', 'radiogenic_neutron', 'uniform_nr', 'band']
-        l_possible_identifiers = ['cnns', 'radiogenic_neutron', 'uniform_nr', 'ambe', 'wimp']
+        l_possible_identifiers = ['cnns', 'radiogenic_neutron', 'uniform_nr', 'ambe', 'ambe_f', 'wimp']
     
         if self.identifier == 'wimp':
             assert wimp_mass != False
@@ -35,6 +35,7 @@ class nr_analysis_xe1t(object):
         self.num_steps_to_include = num_steps_to_include
         self.num_mc_events = int(num_mc_events)
         self.device_number = device_number
+        self.b_conservative_acceptance_posterior = b_conservative_acceptance_posterior
         
         
         # expected rate will be calculated in each
@@ -75,6 +76,7 @@ class nr_analysis_xe1t(object):
         name_of_results_directory = config_xe1t.results_directory_name
         l_plots = ['plots', self.dir_specifier_name, '%s_kV_%s_deg' % (s_cathode_settings, s_degree_settings)]
 
+        #s_path_to_file = './%s/%s/%s_kV_%s_deg/sampler_dictionary_170424_high_pax_acceptance.p' % (name_of_results_directory, self.dir_specifier_name, s_cathode_settings, s_degree_settings)
         s_path_to_file = './%s/%s/%s_kV_%s_deg/sampler_dictionary.p' % (name_of_results_directory, self.dir_specifier_name, s_cathode_settings, s_degree_settings)
 
         self.s_path_to_plots = './plots/%s/%s_kV_%s_deg/' % (self.dir_specifier_name, s_cathode_settings, s_degree_settings)
@@ -82,10 +84,13 @@ class nr_analysis_xe1t(object):
         if os.path.exists(s_path_to_file):
             dSampler = pickle.load(open(s_path_to_file, 'r'))
             l_chains = []
+            l_ln_likelihoods = []
             for sampler in dSampler[num_walkers]:
                 l_chains.append(sampler['_chain'])
+                l_ln_likelihoods.append(sampler['_lnprob'])
 
             a_full_sampler = np.concatenate(l_chains, axis=1)
+            a_full_ln_likelihood = np.concatenate(l_ln_likelihoods, axis=1)
 
             print 'Successfully loaded sampler!'
         else:
@@ -107,6 +112,12 @@ class nr_analysis_xe1t(object):
         # get significant value sets to loop over later
         self.a_samples = a_full_sampler[:, -num_steps_to_include:, :].reshape((-1, a_full_sampler.shape[2]))
         self.a_best_fit = np.percentile(self.a_samples, 50., axis=0)
+    
+        """
+        print '\nUsing best ln likelihood from chain\n'
+        a_best_fit_indices = np.unravel_index(np.argmax(a_full_ln_likelihood), a_full_ln_likelihood.shape)
+        self.a_best_fit = a_full_sampler[a_best_fit_indices]
+        """
         
         
         
@@ -143,7 +154,7 @@ class nr_analysis_xe1t(object):
 
 
 
-        if not (self.identifier == 'ambe'):
+        if not (self.identifier == 'ambe' or self.identifier == 'ambe_f'):
             self.d_mc_energy = pickle.load(open('%swimp_mc.p' % config_xe1t.path_to_fit_inputs, 'r'))
         else:
             self.d_mc_energy = pickle.load(open('%sambe_mc.p' % config_xe1t.path_to_fit_inputs, 'r'))
@@ -223,7 +234,9 @@ class nr_analysis_xe1t(object):
             self.a_mc_energy = np.asarray(self.a_mc_energy, dtype=np.float32)
             
             
-        elif self.identifier == 'ambe':
+        elif self.identifier == 'ambe' or self.identifier == 'ambe_f':
+            pass
+            """
             bin_width = self.d_mc_energy['a_energy_bins'][1] - self.d_mc_energy['a_energy_bins'][0]
 
             cdf = np.cumsum(self.d_mc_energy['a_energy_hist'])
@@ -241,7 +254,7 @@ class nr_analysis_xe1t(object):
                     current_random_num = -current_random_num
                 
                 self.a_mc_energy[i] = current_random_num
-                
+            """
                 
         elif self.identifier == 'wimp':
         
@@ -288,8 +301,9 @@ class nr_analysis_xe1t(object):
             # will fill in x,y
             pass
 
-        elif self.identifier == 'ambe':
-        
+        elif self.identifier == 'ambe' or self.identifier == 'ambe_f':
+            pass
+            """
             d_mc_positions = pickle.load(open('%smc_maps.p' % config_xe1t.path_to_fit_inputs, 'r'))
         
             bin_width = d_mc_positions['z_bin_edges'][1] - d_mc_positions['z_bin_edges'][0]
@@ -305,7 +319,7 @@ class nr_analysis_xe1t(object):
                 current_random_num = np.random.random()*bin_width + random_from_cdf[i]
                 
                 self.a_mc_z[i] = current_random_num
-
+            """
 
 
         # -----------------------------------------
@@ -349,26 +363,16 @@ class nr_analysis_xe1t(object):
                 self.a_mc_z[i] = current_z/10.
 
 
-        elif self.identifier == 'ambe':
+        elif self.identifier == 'ambe' or self.identifier == 'ambe_f':
 
-            d_mc_positions = pickle.load(open('%smc_maps.p' % config_xe1t.path_to_fit_inputs, 'r'))
+            num_times_to_copy_array = (len(self.d_mc_energy['a_energy'])%self.num_mc_events)+1
+            self.a_mc_energy = np.concatenate([self.d_mc_energy['a_energy']]*num_times_to_copy_array)[:self.num_mc_events]
+        
 
-            bin_width_x = d_mc_positions['x_bin_edges'][1] - d_mc_positions['x_bin_edges'][0]
-            bin_width_y = d_mc_positions['y_bin_edges'][1] - d_mc_positions['y_bin_edges'][0]
-
-            cdf = np.cumsum(d_mc_positions['xy_map'].T.ravel())
-            cdf = cdf / cdf[-1]
-            values = np.random.rand(self.num_mc_events)
-            value_bins = np.searchsorted(cdf, values)
-            x_idx, y_idx = np.unravel_index(value_bins, (len(d_mc_positions['x_bin_edges'])-1, len(d_mc_positions['y_bin_edges'])-1))
-
-            for i in tqdm.tqdm(xrange(self.num_mc_events)):
-                current_random_num_x = np.random.random()*bin_width_x + d_mc_positions['x_bin_edges'][x_idx[i]]
-                current_random_num_y = np.random.random()*bin_width_y + d_mc_positions['y_bin_edges'][y_idx[i]]
-                
-                
-                self.a_mc_x[i] = current_random_num_x
-                self.a_mc_y[i] = current_random_num_y
+            # filling directly from arrays for x, y, energy
+            self.a_mc_x = np.concatenate([self.d_mc_energy['a_x']]*num_times_to_copy_array)[:self.num_mc_events]
+            self.a_mc_y = np.concatenate([self.d_mc_energy['a_y']]*num_times_to_copy_array)[:self.num_mc_events]
+            self.a_mc_z = np.concatenate([self.d_mc_energy['a_z']]*num_times_to_copy_array)[:self.num_mc_events]
 
 
         # -----------------------------------------
@@ -467,7 +471,7 @@ class nr_analysis_xe1t(object):
         self.a_s2bs_lb_smearing = np.asarray(d_bias_smearing['s2']['lb_smearing'], dtype=np.float32)
         self.a_s2bs_ub_smearing = np.asarray(d_bias_smearing['s2']['ub_smearing'], dtype=np.float32)
 
-        if not self.identifier == 'ambe':
+        if not (self.identifier == 'ambe' or self.identifier == 'ambe_f'):
             d_acceptances = pickle.load(open('%sacceptances_wimps.p' % (config_xe1t.path_to_fit_inputs), 'r'))
         else:
             d_acceptances = pickle.load(open('%sacceptances_ambe.p' % (config_xe1t.path_to_fit_inputs), 'r'))
@@ -590,7 +594,7 @@ class nr_analysis_xe1t(object):
 
         if self.identifier == 'cnns' or self.identifier == 'radiogenic_neutron' or self.identifier == 'wimp':
             gpu_function_name = 'gpu_full_observables_production_with_arrays_no_fv'
-        elif self.identifier == 'ambe':
+        elif self.identifier == 'ambe' or self.identifier == 'ambe_f':
             gpu_function_name = 'gpu_full_observables_production_with_arrays'
         elif self.identifier == 'uniform_nr':
             gpu_function_name = 'gpu_full_observables_production_with_arrays_no_fv_corrected_and_uncorrected_and_acceptances'
@@ -693,8 +697,22 @@ class nr_analysis_xe1t(object):
         count_parameters += 1
         d_sampler_values['s2_smearing_par'] = np.asarray(a_fit_parameters[count_parameters], dtype=np.float32)
         count_parameters += 1
-        d_sampler_values['acceptance_par'] = np.asarray(a_fit_parameters[count_parameters], dtype=np.float32)
-        count_parameters += 1
+        
+        if not self.identifier == 'ambe_f:'
+            if not self.b_conservative_acceptance_posterior:
+                d_sampler_values['acceptance_par'] = np.asarray(a_fit_parameters[count_parameters], dtype=np.float32)
+            else:
+                print '\n\nSetting PAX acceptance parameter equal to zero (conservative posterior mode)\n\n'
+                d_sampler_values['acceptance_par'] = np.asarray(0, dtype=np.float32)
+            
+            count_parameters += 1
+        
+        else:
+            d_sampler_values['acceptance_par_0'] = np.asarray(a_fit_parameters[count_parameters], dtype=np.float32)
+            count_parameters += 1
+            d_sampler_values['acceptance_par_1'] = np.asarray(a_fit_parameters[count_parameters], dtype=np.float32)
+            count_parameters += 1
+        
 
         d_sampler_values['current_cut_acceptance_s1_intercept'] = np.asarray(self.d_plotting_information['cut_acceptance_s1_intercept'] + a_fit_parameters[count_parameters]*self.d_plotting_information['cut_acceptance_s1_intercept_uncertainty'], dtype=np.float32)
         d_sampler_values['current_cut_acceptance_s1_slope'] = np.asarray(self.d_plotting_information['cut_acceptance_s1_slope'] + a_fit_parameters[count_parameters]*self.d_plotting_information['cut_acceptance_s1_slope_uncertainty'], dtype=np.float32)
@@ -707,7 +725,7 @@ class nr_analysis_xe1t(object):
             d_sampler_values['prob_bkg'] = np.asarray(0, dtype=np.float32)
             d_sampler_values['scale_par'] = np.asarray(1, dtype=np.float32)
             count_parameters += 2
-        elif self.identifier == 'ambe':
+        elif (self.identifier == 'ambe' or self.identifier == 'ambe_f'):
             d_sampler_values['prob_bkg'] = np.asarray(a_fit_parameters[count_parameters], dtype=np.float32)
             count_parameters += 1
             d_sampler_values['scale_par'] = np.asarray(a_fit_parameters[count_parameters], dtype=np.float32)
@@ -747,6 +765,11 @@ class nr_analysis_xe1t(object):
     
     def get_path_to_plots(self):
         return self.s_path_to_plots
+    
+    
+    
+    def get_mc_energies(self):
+        return self.a_mc_energy
 
 
 

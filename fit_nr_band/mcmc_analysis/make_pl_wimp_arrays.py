@@ -45,7 +45,7 @@ import pycuda.driver as drv
 # -----------------------------------------
 
 l_grid_parameters = ['gamma', 'alpha', 'lambda', 'extraction_efficiency']
-num_mc_events = int(2e5)
+num_mc_events = int(2e6)
 
 fiducial_volume_mass = 1000. # kg
 print '\n\nGiving rate assuming %0.f kg FV\n\n\n' % (fiducial_volume_mass)
@@ -77,8 +77,8 @@ d_parameter_to_index = {'kappa':6,
 num_steps_to_include = 10
 
 
-if(len(sys.argv) != 3):
-	print 'Usage is python make_pl_histograms_wimps.py <num walkers> <wimp mass>'
+if(len(sys.argv) != 4):
+	print 'Usage is python make_pl_histograms_wimps.py <num walkers> <wimp mass> <device number>'
 	sys.exit(1)
 
 num_walkers = int(sys.argv[1])
@@ -96,7 +96,7 @@ name_of_results_directory = config_xe1t.results_directory_name
 l_plots = ['plots', dir_specifier_name, '%.3f_kV_%d_deg' % (cathode_setting, degree_setting), 'wimp_spectra']
 
 
-current_analysis = nr_analysis_xe1t.nr_analysis_xe1t('wimp', 'lax_0.11.1', num_mc_events, num_walkers, num_steps_to_include, wimp_mass=wimp_mass)
+current_analysis = nr_analysis_xe1t.nr_analysis_xe1t('wimp', 'lax_0.11.1', num_mc_events, num_walkers, num_steps_to_include, wimp_mass=wimp_mass, device_number=int(sys.argv[3]), b_conservative_acceptance_posterior=True)
 
 
 

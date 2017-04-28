@@ -22,8 +22,9 @@ import scipy.interpolate
 b_wimp_input = False
 
 if not b_wimp_input:
-    #s_path_to_input = './resources/sr0_efficiency_ambe_conditions.csv'
-    s_path_to_input = './resources/sr0_efficiency_ambe_threshold_normal_noise.csv'
+    s_path_to_input = './resources/sr0_efficiency_ambe_conditions.csv'
+    #s_path_to_input = './resources/sr0_efficiency_ambe_threshold_normal_noise.csv'
+    #s_path_to_input = './resources/sr0_efficiency_ambe_conditions_goodnoise.csv'
 else:
     s_path_to_input = './resources/sr0_efficiency_weightedaverage_conditions.csv'
 
@@ -49,9 +50,9 @@ fig_pf_s1, ax_pf_s1 = plt.subplots(1)
 ax_pf_s1.fill_between(d_acceptances['pf_s1']['x_values'], d_acceptances['pf_s1']['y_values_lower'], d_acceptances['pf_s1']['y_values_upper'], alpha=0.2)
 ax_pf_s1.plot(d_acceptances['pf_s1']['x_values'], d_acceptances['pf_s1']['y_values_mean'], 'b--')
 
-print 'adding line at 4.5 sigma'
-temp_line = d_acceptances['pf_s1']['y_values_mean'] + 4.5*(d_acceptances['pf_s1']['y_values_upper']-d_acceptances['pf_s1']['y_values_mean'])
-ax_pf_s1.plot(d_acceptances['pf_s1']['x_values'], temp_line, 'r--')
+#print 'adding line at 4.5 sigma'
+#temp_line = d_acceptances['pf_s1']['y_values_mean'] + 4.5*(d_acceptances['pf_s1']['y_values_upper']-d_acceptances['pf_s1']['y_values_mean'])
+#ax_pf_s1.plot(d_acceptances['pf_s1']['x_values'], temp_line, 'r--')
 
 #ax_pf_s1.set_xlim(min(d_acceptances['pf_s1']['x_values']), max(d_acceptances['pf_s1']['x_values']))
 ax_pf_s1.set_ylim(0, 1.03)

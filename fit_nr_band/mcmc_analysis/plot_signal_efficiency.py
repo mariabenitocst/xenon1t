@@ -42,7 +42,7 @@ if not os.path.exists(s_path_for_save):
     os.makedirs(s_path_for_save)
 
 
-d_arrays = pickle.load(open('%ssignal_efficiency_lines_dict_%.3f_kV.p' % (s_path_for_save, cathode_setting), 'r'))
+d_arrays = pickle.load(open('./mc_output/signal_efficiency_bands.p', 'r'))
 
 l_keys = ['threshold_only', 's1_cut_only', 's2_cut_only', 'pax_only', 'total_minus_threshold', 'total']
 
