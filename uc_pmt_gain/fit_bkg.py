@@ -52,7 +52,7 @@ def bkg_fitting(filename):
 
     print d_fit
 
-    #raw_input('Press enter to continue...')
+    raw_input('Press enter to continue...')
 
 
     pickle.dump(d_fit, open('./bkg_results/bkg_%s.p' % (file), 'w'))

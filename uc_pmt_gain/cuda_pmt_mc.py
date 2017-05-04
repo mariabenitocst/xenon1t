@@ -294,7 +294,7 @@ __global__ void setup_kernel (int nthreads, curandState *state, unsigned long lo
 
 
 
-__global__ void cascade_pmt_model(curandState *state, int *num_trials, int *num_loops, float *a_hist, float *mean_num_pe, float *prob_hit_first_dynode, float *mean_e_from_dynode, float *width_e_from_dynode, float *probability_electron_ionized, float *bkg_mean, float *bkg_std, float *bkg_exp, float *prob_exp_bkg, int *num_bins, float *bin_edges)
+__global__ void cascade_pmt_model(curandState *state, int *num_trials, int *num_loops, float *a_hist, float *mean_num_pe, float *prob_hit_first_dynode, float *collection_efficiency, float *mean_e_from_dynode, float *width_e_from_dynode, float *probability_electron_ionized, float *underamp_ionization_correction_max, float *underamp_ionization_correction_slope, float *poor_collection_ionization_correction, float *bkg_mean, float *bkg_std, float *bkg_exp, float *prob_exp_bkg, int *num_bins, float *bin_edges)
 {
     //printf("hello\\n");
     
@@ -302,10 +302,14 @@ __global__ void cascade_pmt_model(curandState *state, int *num_trials, int *num_
     curandState s = state[iteration];
     
     int bin_number;
-    int num_dynodes = 12;
+    const int num_dynodes = 12;
     float f_tot_num_pe;
     int pe_from_first_dynode;
-    int current_num_dynodes;
+    int i_poor_collection_electrons;
+    float ionization_correction_factor;
+    
+    float a_resistance_chain_correction[num_dynodes] = {4, 1.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2}; // https://arxiv.org/pdf/1202.2628.pdf
+    //float a_resistance_chain_correction[num_dynodes] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}; // https://arxiv.org/pdf/1202.2628.pdf
     
     int num_electrons_leaving_dynode;
     
@@ -319,7 +323,6 @@ __global__ void cascade_pmt_model(curandState *state, int *num_trials, int *num_
             //printf("hello\\n");
             
             int i_tot_num_pe = curand_poisson(&s, *mean_num_pe);
-            current_num_dynodes = num_dynodes;
     
             if (*prob_hit_first_dynode < 0 || *prob_hit_first_dynode > 1)
             {	
@@ -331,15 +334,8 @@ __global__ void cascade_pmt_model(curandState *state, int *num_trials, int *num_
             pe_from_first_dynode = gpu_binomial(&s, i_tot_num_pe, 1-*prob_hit_first_dynode);
             i_tot_num_pe -= pe_from_first_dynode;
             
-            // check if all PE are from first dynode
-            // if so just pretend all were from cathode
-            // but assume one less dynode
-            if (i_tot_num_pe == 0)
-            {
-                i_tot_num_pe = pe_from_first_dynode;
-                pe_from_first_dynode = 0;
-                current_num_dynodes -= 1;
-            }
+            i_poor_collection_electrons = gpu_binomial(&s, i_tot_num_pe, 1-*collection_efficiency);
+            i_tot_num_pe -= i_poor_collection_electrons;
             
             if (*mean_e_from_dynode < 0)
             {	
@@ -349,26 +345,19 @@ __global__ void cascade_pmt_model(curandState *state, int *num_trials, int *num_
             
             if (i_tot_num_pe > 0)
             {
-                for (int i = 0; i < current_num_dynodes; i++)
+                for (int i = 0; i < num_dynodes; i++)
                 {
-                    // after first dynode add the PE originating from
-                    // first dynode back in
-                    if (i == 1)
-                        i_tot_num_pe += pe_from_first_dynode;
-                        
                 
                     if (i_tot_num_pe < 10000)
                     {
-                    
-                    
                         if (i_tot_num_pe < 15)
                         {
-                            num_electrons_leaving_dynode = (int)gpu_discrete_gaussian(&s, *mean_e_from_dynode*i_tot_num_pe, *width_e_from_dynode*powf(i_tot_num_pe, 0.5));
+                            num_electrons_leaving_dynode = (int)gpu_discrete_gaussian(&s, *mean_e_from_dynode*i_tot_num_pe*a_resistance_chain_correction[i], *width_e_from_dynode*powf(i_tot_num_pe*a_resistance_chain_correction[i], 0.5));
                             if (num_electrons_leaving_dynode < 1)
                                 continue;
                         }
                         else
-                            num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(i_tot_num_pe, 0.5)) + *mean_e_from_dynode*i_tot_num_pe );
+                            num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(i_tot_num_pe*a_resistance_chain_correction[i], 0.5)) + *mean_e_from_dynode*i_tot_num_pe*a_resistance_chain_correction[i] );
                         
                         
                         
@@ -376,9 +365,72 @@ __global__ void cascade_pmt_model(curandState *state, int *num_trials, int *num_
                     }
                     else
                     {
-                        num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(i_tot_num_pe, 0.5)) + *mean_e_from_dynode*i_tot_num_pe );
+                        num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(i_tot_num_pe*a_resistance_chain_correction[i], 0.5)) + *mean_e_from_dynode*i_tot_num_pe*a_resistance_chain_correction[i] );
                     
                         i_tot_num_pe = (curand_normal(&s) * powf(num_electrons_leaving_dynode**probability_electron_ionized*(1-*probability_electron_ionized), 0.5)) + num_electrons_leaving_dynode**probability_electron_ionized;
+                    }
+                }
+            }
+            
+            if (i_poor_collection_electrons > 0)
+            {
+                for (int i = 0; i < (num_dynodes); i++)
+                {
+                
+                    if (i_poor_collection_electrons < 10000)
+                    {
+                        if (i_poor_collection_electrons < 15)
+                        {
+                            num_electrons_leaving_dynode = (int)gpu_discrete_gaussian(&s, *mean_e_from_dynode*i_poor_collection_electrons*a_resistance_chain_correction[i], *width_e_from_dynode*powf(i_poor_collection_electrons*a_resistance_chain_correction[i], 0.5));
+                            if (num_electrons_leaving_dynode < 1)
+                                continue;
+                        }
+                        else
+                            num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(i_poor_collection_electrons*a_resistance_chain_correction[i], 0.5)) + *mean_e_from_dynode*i_poor_collection_electrons*a_resistance_chain_correction[i] );
+                        
+                        
+                        
+                        i_poor_collection_electrons = gpu_binomial(&s, num_electrons_leaving_dynode, *probability_electron_ionized**poor_collection_ionization_correction);
+                    }
+                    else
+                    {
+                        num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(i_poor_collection_electrons*a_resistance_chain_correction[i], 0.5)) + *mean_e_from_dynode*i_poor_collection_electrons*a_resistance_chain_correction[i] );
+                    
+                        i_poor_collection_electrons = (curand_normal(&s) * powf(num_electrons_leaving_dynode**probability_electron_ionized**poor_collection_ionization_correction*(1-*probability_electron_ionized**poor_collection_ionization_correction), 0.5)) + num_electrons_leaving_dynode**probability_electron_ionized**poor_collection_ionization_correction;
+                    }
+                }
+            }
+            
+            if (pe_from_first_dynode > 0)
+            {
+                for (int i = 0; i < (num_dynodes-1); i++)
+                {
+                    ionization_correction_factor = *underamp_ionization_correction_max - fabsf((curand_uniform(&s) - 0.5)*2)**underamp_ionization_correction_slope;
+                    if (ionization_correction_factor > 1)
+                        ionization_correction_factor = 1;
+                    else if (ionization_correction_factor < 0)
+                        ionization_correction_factor = 0;
+                
+                    if (pe_from_first_dynode < 10000)
+                    {
+                        if (pe_from_first_dynode < 15)
+                        {
+                            num_electrons_leaving_dynode = (int)gpu_discrete_gaussian(&s, *mean_e_from_dynode*pe_from_first_dynode*a_resistance_chain_correction[i], *width_e_from_dynode*powf(pe_from_first_dynode*a_resistance_chain_correction[i], 0.5));
+                            if (num_electrons_leaving_dynode < 1)
+                                continue;
+                        }
+                        else
+                            num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(pe_from_first_dynode*a_resistance_chain_correction[i], 0.5)) + *mean_e_from_dynode*pe_from_first_dynode*a_resistance_chain_correction[i] );
+                        
+                        
+                        
+                        pe_from_first_dynode = gpu_binomial(&s, num_electrons_leaving_dynode, *probability_electron_ionized*ionization_correction_factor);
+                    }
+                    else
+                    {
+                        num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(pe_from_first_dynode*a_resistance_chain_correction[i], 0.5)) + *mean_e_from_dynode*pe_from_first_dynode*a_resistance_chain_correction[i] );
+                    
+                        pe_from_first_dynode = (curand_normal(&s) * powf(num_electrons_leaving_dynode**probability_electron_ionized*ionization_correction_factor*(1-*probability_electron_ionized*ionization_correction_factor), 0.5)) + num_electrons_leaving_dynode**probability_electron_ionized*ionization_correction_factor;
                     }
                 }
             }
@@ -390,7 +442,7 @@ __global__ void cascade_pmt_model(curandState *state, int *num_trials, int *num_
                 continue;
                 //return;
             }
-            f_tot_num_pe = (curand_normal(&s) * *bkg_std) + *bkg_mean + i_tot_num_pe;
+            f_tot_num_pe = (curand_normal(&s) * *bkg_std) + *bkg_mean + i_tot_num_pe + pe_from_first_dynode + i_poor_collection_electrons;
             
             
             if (*bkg_exp < 0)
@@ -424,12 +476,11 @@ __global__ void cascade_pmt_model(curandState *state, int *num_trials, int *num_
         
     }
     
-
-
 }
 
 
-__global__ void pure_cascade_spectrum(curandState *state, int *num_trials, float *a_hist, int *num_pe, float *prob_hit_first_dynode, float *mean_e_from_dynode, float *width_e_from_dynode, float *probability_electron_ionized, int *num_bins, float *bin_edges)
+
+__global__ void cascade_pmt_model_array(curandState *state, int *num_trials, int *num_loops, float *a_integrals, float *mean_num_pe, float *prob_hit_first_dynode, float *collection_efficiency, float *mean_e_from_dynode, float *width_e_from_dynode, float *probability_electron_ionized, float *underamp_ionization_correction_max, float *underamp_ionization_correction_slope, float *poor_collection_ionization_correction, float *bkg_mean, float *bkg_std, float *bkg_exp, float *prob_exp_bkg, int *num_bins, float *bin_edges)
 {
     //printf("hello\\n");
     
@@ -439,8 +490,190 @@ __global__ void pure_cascade_spectrum(curandState *state, int *num_trials, float
     int bin_number;
     const int num_dynodes = 12;
     float f_tot_num_pe;
-    int current_num_dynodes;
     int pe_from_first_dynode;
+    int i_poor_collection_electrons;
+    float ionization_correction_factor;
+    
+    float a_resistance_chain_correction[num_dynodes] = {4, 1.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2}; // https://arxiv.org/pdf/1202.2628.pdf
+    //float a_resistance_chain_correction[num_dynodes] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}; // https://arxiv.org/pdf/1202.2628.pdf
+    
+    
+    int num_electrons_leaving_dynode;
+    
+    int repetition_number;
+    
+    if (iteration < *num_trials)
+	{
+    
+        for (repetition_number=0; repetition_number < 1; repetition_number++)
+        {
+            //printf("hello\\n");
+            
+            int i_tot_num_pe = curand_poisson(&s, *mean_num_pe);
+    
+            if (*prob_hit_first_dynode < 0 || *prob_hit_first_dynode > 1)
+            {	
+                state[iteration] = s;
+                continue;
+            }
+        
+        
+            pe_from_first_dynode = gpu_binomial(&s, i_tot_num_pe, 1-*prob_hit_first_dynode);
+            i_tot_num_pe -= pe_from_first_dynode;
+            
+            i_poor_collection_electrons = gpu_binomial(&s, i_tot_num_pe, 1-*collection_efficiency);
+            i_tot_num_pe -= i_poor_collection_electrons;
+            
+            if (*mean_e_from_dynode < 0)
+            {	
+                state[iteration] = s;
+                continue;
+            }
+            
+            if (i_tot_num_pe > 0)
+            {
+                for (int i = 0; i < num_dynodes; i++)
+                {
+                
+                    if (i_tot_num_pe < 10000)
+                    {
+                        if (i_tot_num_pe < 15)
+                        {
+                            num_electrons_leaving_dynode = (int)gpu_discrete_gaussian(&s, *mean_e_from_dynode*i_tot_num_pe*a_resistance_chain_correction[i], *width_e_from_dynode*powf(i_tot_num_pe*a_resistance_chain_correction[i], 0.5));
+                            if (num_electrons_leaving_dynode < 1)
+                                continue;
+                        }
+                        else
+                            num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(i_tot_num_pe*a_resistance_chain_correction[i], 0.5)) + *mean_e_from_dynode*i_tot_num_pe*a_resistance_chain_correction[i] );
+                        
+                        
+                        
+                        i_tot_num_pe = gpu_binomial(&s, num_electrons_leaving_dynode, *probability_electron_ionized);
+                    }
+                    else
+                    {
+                        num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(i_tot_num_pe*a_resistance_chain_correction[i], 0.5)) + *mean_e_from_dynode*i_tot_num_pe*a_resistance_chain_correction[i] );
+                    
+                        i_tot_num_pe = (curand_normal(&s) * powf(num_electrons_leaving_dynode**probability_electron_ionized*(1-*probability_electron_ionized), 0.5)) + num_electrons_leaving_dynode**probability_electron_ionized;
+                    }
+                }
+            }
+            
+            if (i_poor_collection_electrons > 0)
+            {
+                for (int i = 0; i < (num_dynodes); i++)
+                {
+                
+                    if (i_poor_collection_electrons < 10000)
+                    {
+                        if (i_poor_collection_electrons < 15)
+                        {
+                            num_electrons_leaving_dynode = (int)gpu_discrete_gaussian(&s, *mean_e_from_dynode*i_poor_collection_electrons*a_resistance_chain_correction[i], *width_e_from_dynode*powf(i_poor_collection_electrons*a_resistance_chain_correction[i], 0.5));
+                            if (num_electrons_leaving_dynode < 1)
+                                continue;
+                        }
+                        else
+                            num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(i_poor_collection_electrons*a_resistance_chain_correction[i], 0.5)) + *mean_e_from_dynode*i_poor_collection_electrons*a_resistance_chain_correction[i] );
+                        
+                        
+                        
+                        i_poor_collection_electrons = gpu_binomial(&s, num_electrons_leaving_dynode, *probability_electron_ionized**poor_collection_ionization_correction);
+                    }
+                    else
+                    {
+                        num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(i_poor_collection_electrons*a_resistance_chain_correction[i], 0.5)) + *mean_e_from_dynode*i_poor_collection_electrons*a_resistance_chain_correction[i] );
+                    
+                        i_poor_collection_electrons = (curand_normal(&s) * powf(num_electrons_leaving_dynode**probability_electron_ionized**poor_collection_ionization_correction*(1-*probability_electron_ionized**poor_collection_ionization_correction), 0.5)) + num_electrons_leaving_dynode**probability_electron_ionized**poor_collection_ionization_correction;
+                    }
+                }
+            }
+            
+            if (pe_from_first_dynode > 0)
+            {
+                for (int i = 0; i < (num_dynodes-1); i++)
+                {
+                    ionization_correction_factor = *underamp_ionization_correction_max - fabsf((curand_uniform(&s) - 0.5)*2)**underamp_ionization_correction_slope;
+                    if (ionization_correction_factor > 1)
+                        ionization_correction_factor = 1;
+                    else if (ionization_correction_factor < 0)
+                        ionization_correction_factor = 0;
+                
+                    if (pe_from_first_dynode < 10000)
+                    {
+                        if (pe_from_first_dynode < 15)
+                        {
+                            num_electrons_leaving_dynode = (int)gpu_discrete_gaussian(&s, *mean_e_from_dynode*pe_from_first_dynode*a_resistance_chain_correction[i], *width_e_from_dynode*powf(pe_from_first_dynode*a_resistance_chain_correction[i], 0.5));
+                            if (num_electrons_leaving_dynode < 1)
+                                continue;
+                        }
+                        else
+                            num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(pe_from_first_dynode*a_resistance_chain_correction[i], 0.5)) + *mean_e_from_dynode*pe_from_first_dynode*a_resistance_chain_correction[i] );
+                        
+                        
+                        
+                        pe_from_first_dynode = gpu_binomial(&s, num_electrons_leaving_dynode, *probability_electron_ionized*ionization_correction_factor);
+                    }
+                    else
+                    {
+                        num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(pe_from_first_dynode*a_resistance_chain_correction[i], 0.5)) + *mean_e_from_dynode*pe_from_first_dynode*a_resistance_chain_correction[i] );
+                    
+                        pe_from_first_dynode = (curand_normal(&s) * powf(num_electrons_leaving_dynode**probability_electron_ionized*ionization_correction_factor*(1-*probability_electron_ionized*ionization_correction_factor), 0.5)) + num_electrons_leaving_dynode**probability_electron_ionized*ionization_correction_factor;
+                    }
+                }
+            }
+            
+            
+            if (*bkg_std < 0)
+            {	
+                state[iteration] = s;
+                continue;
+                //return;
+            }
+            f_tot_num_pe = (curand_normal(&s) * *bkg_std) + *bkg_mean + i_tot_num_pe + pe_from_first_dynode + i_poor_collection_electrons;
+            
+            
+            if (*bkg_exp < 0)
+            {
+                state[iteration] = s;
+                return;
+            }
+            if(curand_uniform(&s) < *prob_exp_bkg)
+                f_tot_num_pe += gpu_exponential(&s, *bkg_exp, *bkg_mean);
+            
+            a_integrals[iteration] = f_tot_num_pe;
+            state[iteration] = s;
+            //printf("hi: %f\\n", f_tot_num_pe);
+        }
+        
+        
+		return;
+        
+        
+        
+    }
+    
+}
+
+
+
+
+
+__global__ void pure_cascade_spectrum(curandState *state, int *num_trials, float *a_hist, int *num_pe, float *prob_hit_first_dynode, float *collection_efficiency, float *mean_e_from_dynode, float *width_e_from_dynode, float *probability_electron_ionized, float *underamp_ionization_correction_max, float *underamp_ionization_correction_slope, float *poor_collection_ionization_correction, int *num_bins, float *bin_edges)
+{
+    //printf("hello\\n");
+    
+    int iteration = blockIdx.x * blockDim.x * blockDim.y + threadIdx.y * blockDim.x + threadIdx.x;
+    curandState s = state[iteration];
+    
+    int bin_number;
+    const int num_dynodes = 12;
+    float f_tot_num_pe;
+    int pe_from_first_dynode;
+    int i_poor_collection_electrons;
+    float ionization_correction_factor;
+    
+    float a_resistance_chain_correction[num_dynodes] = {4, 1.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2}; // https://arxiv.org/pdf/1202.2628.pdf
+    //float a_resistance_chain_correction[num_dynodes] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}; // https://arxiv.org/pdf/1202.2628.pdf
     
     
     int num_electrons_leaving_dynode;
@@ -450,7 +683,6 @@ __global__ void pure_cascade_spectrum(curandState *state, int *num_trials, float
 	{
     
         int i_tot_num_pe = *num_pe;
-        current_num_dynodes = num_dynodes;
 
         if (*prob_hit_first_dynode < 0 || *prob_hit_first_dynode > 1)
         {	
@@ -461,40 +693,30 @@ __global__ void pure_cascade_spectrum(curandState *state, int *num_trials, float
         pe_from_first_dynode = gpu_binomial(&s, i_tot_num_pe, 1-*prob_hit_first_dynode);
         i_tot_num_pe -= pe_from_first_dynode;
         
+        i_poor_collection_electrons = gpu_binomial(&s, i_tot_num_pe, 1-*collection_efficiency);
+        i_tot_num_pe -= i_poor_collection_electrons;
         
-        // check if all PE are from first dynode
-        // if so just pretend all were from cathode
-        // but assume one less dynode
-        if (i_tot_num_pe == 0)
-        {
-            i_tot_num_pe = pe_from_first_dynode;
-            pe_from_first_dynode = 0;
-            current_num_dynodes -= 1;
-        }
-        
-
         if (*mean_e_from_dynode < 0)
-		{	
-			state[iteration] = s;
-			return;
-		}
+        {	
+            state[iteration] = s;
+            return;
+        }
         
         if (i_tot_num_pe > 0)
         {
-            for (int i = 0; i < current_num_dynodes; i++)
+            for (int i = 0; i < num_dynodes; i++)
             {
+            
                 if (i_tot_num_pe < 10000)
                 {
-                
-                
                     if (i_tot_num_pe < 15)
                     {
-                        num_electrons_leaving_dynode = (int)gpu_discrete_gaussian(&s, *mean_e_from_dynode*i_tot_num_pe, *width_e_from_dynode*powf(i_tot_num_pe, 0.5));
+                        num_electrons_leaving_dynode = (int)gpu_discrete_gaussian(&s, *mean_e_from_dynode*i_tot_num_pe*a_resistance_chain_correction[i], *width_e_from_dynode*powf(i_tot_num_pe*a_resistance_chain_correction[i], 0.5));
                         if (num_electrons_leaving_dynode < 1)
                             continue;
                     }
                     else
-                        num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(i_tot_num_pe, 0.5)) + *mean_e_from_dynode*i_tot_num_pe );
+                        num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(i_tot_num_pe*a_resistance_chain_correction[i], 0.5)) + *mean_e_from_dynode*i_tot_num_pe*a_resistance_chain_correction[i] );
                     
                     
                     
@@ -502,23 +724,79 @@ __global__ void pure_cascade_spectrum(curandState *state, int *num_trials, float
                 }
                 else
                 {
-                    num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(i_tot_num_pe, 0.5)) + *mean_e_from_dynode*i_tot_num_pe );
+                    num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(i_tot_num_pe*a_resistance_chain_correction[i], 0.5)) + *mean_e_from_dynode*i_tot_num_pe*a_resistance_chain_correction[i] );
                 
                     i_tot_num_pe = (curand_normal(&s) * powf(num_electrons_leaving_dynode**probability_electron_ionized*(1-*probability_electron_ionized), 0.5)) + num_electrons_leaving_dynode**probability_electron_ionized;
                 }
             }
         }
         
-        // remove zero counts (~5% probability that single electron)
-        // frees zero new electrons
-        if (i_tot_num_pe == 0)
-		{
-			state[iteration] = s;
-			return;
-		}
+        if (i_poor_collection_electrons > 0)
+        {
+            for (int i = 0; i < (num_dynodes); i++)
+            {
+            
+                if (i_poor_collection_electrons < 10000)
+                {
+                    if (i_poor_collection_electrons < 15)
+                    {
+                        num_electrons_leaving_dynode = (int)gpu_discrete_gaussian(&s, *mean_e_from_dynode*i_poor_collection_electrons*a_resistance_chain_correction[i], *width_e_from_dynode*powf(i_poor_collection_electrons*a_resistance_chain_correction[i], 0.5));
+                        if (num_electrons_leaving_dynode < 1)
+                            continue;
+                    }
+                    else
+                        num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(i_poor_collection_electrons*a_resistance_chain_correction[i], 0.5)) + *mean_e_from_dynode*i_poor_collection_electrons*a_resistance_chain_correction[i] );
+                    
+                    
+                    
+                    i_poor_collection_electrons = gpu_binomial(&s, num_electrons_leaving_dynode, *probability_electron_ionized**poor_collection_ionization_correction);
+                }
+                else
+                {
+                    num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(i_poor_collection_electrons*a_resistance_chain_correction[i], 0.5)) + *mean_e_from_dynode*i_poor_collection_electrons*a_resistance_chain_correction[i] );
+                
+                    i_poor_collection_electrons = (curand_normal(&s) * powf(num_electrons_leaving_dynode**probability_electron_ionized**poor_collection_ionization_correction*(1-*probability_electron_ionized**poor_collection_ionization_correction), 0.5)) + num_electrons_leaving_dynode**probability_electron_ionized**poor_collection_ionization_correction;
+                }
+            }
+        }
         
-  
-        f_tot_num_pe = (float)i_tot_num_pe;
+        if (pe_from_first_dynode > 0)
+        {
+            for (int i = 0; i < (num_dynodes-1); i++)
+            {
+                ionization_correction_factor = *underamp_ionization_correction_max - fabsf((curand_uniform(&s) - 0.5)*2)**underamp_ionization_correction_slope;
+                if (ionization_correction_factor > 1)
+                    ionization_correction_factor = 1;
+                else if (ionization_correction_factor < 0)
+                    ionization_correction_factor = 0;
+            
+                if (pe_from_first_dynode < 10000)
+                {
+                    if (pe_from_first_dynode < 15)
+                    {
+                        num_electrons_leaving_dynode = (int)gpu_discrete_gaussian(&s, *mean_e_from_dynode*pe_from_first_dynode*a_resistance_chain_correction[i], *width_e_from_dynode*powf(pe_from_first_dynode*a_resistance_chain_correction[i], 0.5));
+                        if (num_electrons_leaving_dynode < 1)
+                            continue;
+                    }
+                    else
+                        num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(pe_from_first_dynode*a_resistance_chain_correction[i], 0.5)) + *mean_e_from_dynode*pe_from_first_dynode*a_resistance_chain_correction[i] );
+                    
+                    
+                    
+                    pe_from_first_dynode = gpu_binomial(&s, num_electrons_leaving_dynode, *probability_electron_ionized*ionization_correction_factor);
+                }
+                else
+                {
+                    num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(pe_from_first_dynode*a_resistance_chain_correction[i], 0.5)) + *mean_e_from_dynode*pe_from_first_dynode*a_resistance_chain_correction[i] );
+                
+                    pe_from_first_dynode = (curand_normal(&s) * powf(num_electrons_leaving_dynode**probability_electron_ionized*ionization_correction_factor*(1-*probability_electron_ionized*ionization_correction_factor), 0.5)) + num_electrons_leaving_dynode**probability_electron_ionized*ionization_correction_factor;
+                }
+            }
+        }
+        
+        
+
+        f_tot_num_pe = i_tot_num_pe + pe_from_first_dynode + i_poor_collection_electrons;
         
         
         
@@ -546,7 +824,7 @@ __global__ void pure_cascade_spectrum(curandState *state, int *num_trials, float
 
 
 
-__global__ void fixed_pe_cascade_spectrum(curandState *state, int *num_trials, int *num_loops, float *a_hist, int *num_pe, float *prob_hit_first_dynode, float *mean_e_from_dynode, float *width_e_from_dynode, float *probability_electron_ionized, float *bkg_mean, float *bkg_std, float *bkg_exp, float *prob_exp_bkg, int *num_bins, float *bin_edges)
+__global__ void fixed_pe_cascade_spectrum(curandState *state, int *num_trials, int *num_loops, float *a_hist, int *num_pe, float *prob_hit_first_dynode, float *collection_efficiency, float *mean_e_from_dynode, float *width_e_from_dynode, float *probability_electron_ionized, float *underamp_ionization_correction_max, float *underamp_ionization_correction_slope, float *poor_collection_ionization_correction, float *bkg_mean, float *bkg_std, float *bkg_exp, float *prob_exp_bkg, int *num_bins, float *bin_edges)
 {
 
     int iteration = blockIdx.x * blockDim.x * blockDim.y + threadIdx.y * blockDim.x + threadIdx.x;
@@ -555,10 +833,14 @@ __global__ void fixed_pe_cascade_spectrum(curandState *state, int *num_trials, i
     int bin_number;
     const int num_dynodes = 12;
     const int fixed_num_pe = *num_pe;
-    int current_num_dynodes;
     float f_tot_num_pe;
     int i_tot_num_pe;
     int pe_from_first_dynode;
+    int i_poor_collection_electrons;
+    float ionization_correction_factor;
+    
+    float a_resistance_chain_correction[num_dynodes] = {4, 1.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2}; // https://arxiv.org/pdf/1202.2628.pdf
+    //float a_resistance_chain_correction[num_dynodes] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}; // https://arxiv.org/pdf/1202.2628.pdf
     
     int num_electrons_leaving_dynode;
     
@@ -571,55 +853,42 @@ __global__ void fixed_pe_cascade_spectrum(curandState *state, int *num_trials, i
         {
         
             i_tot_num_pe = fixed_num_pe;
-            current_num_dynodes = num_dynodes;
 
 
             if (*prob_hit_first_dynode < 0 || *prob_hit_first_dynode > 1)
             {	
                 state[iteration] = s;
                 continue;
-                //return;
             }
         
-            
+        
             pe_from_first_dynode = gpu_binomial(&s, i_tot_num_pe, 1-*prob_hit_first_dynode);
             i_tot_num_pe -= pe_from_first_dynode;
             
-            // check if all PE are from first dynode
-            // if so just pretend all were from cathode
-            // but assume one less dynode
-            if (i_tot_num_pe == 0)
-            {
-                i_tot_num_pe = pe_from_first_dynode;
-                pe_from_first_dynode = 0;
-                current_num_dynodes -= 1;
-            }
+            i_poor_collection_electrons = gpu_binomial(&s, i_tot_num_pe, 1-*collection_efficiency);
+            i_tot_num_pe -= i_poor_collection_electrons;
             
             if (*mean_e_from_dynode < 0)
             {	
                 state[iteration] = s;
                 continue;
-                //return;
             }
             
             if (i_tot_num_pe > 0)
             {
-                for (int i = 0; i < current_num_dynodes; i++)
+                for (int i = 0; i < num_dynodes; i++)
                 {
-                    // after first dynode add the PE originating from
-                    // first dynode back in
+                
                     if (i_tot_num_pe < 10000)
                     {
-                    
-                    
                         if (i_tot_num_pe < 15)
                         {
-                            num_electrons_leaving_dynode = (int)gpu_discrete_gaussian(&s, *mean_e_from_dynode*i_tot_num_pe, *width_e_from_dynode*powf(i_tot_num_pe, 0.5));
+                            num_electrons_leaving_dynode = (int)gpu_discrete_gaussian(&s, *mean_e_from_dynode*i_tot_num_pe*a_resistance_chain_correction[i], *width_e_from_dynode*powf(i_tot_num_pe*a_resistance_chain_correction[i], 0.5));
                             if (num_electrons_leaving_dynode < 1)
                                 continue;
                         }
                         else
-                            num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(i_tot_num_pe, 0.5)) + *mean_e_from_dynode*i_tot_num_pe );
+                            num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(i_tot_num_pe*a_resistance_chain_correction[i], 0.5)) + *mean_e_from_dynode*i_tot_num_pe*a_resistance_chain_correction[i] );
                         
                         
                         
@@ -627,9 +896,72 @@ __global__ void fixed_pe_cascade_spectrum(curandState *state, int *num_trials, i
                     }
                     else
                     {
-                        num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(i_tot_num_pe, 0.5)) + *mean_e_from_dynode*i_tot_num_pe );
+                        num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(i_tot_num_pe*a_resistance_chain_correction[i], 0.5)) + *mean_e_from_dynode*i_tot_num_pe*a_resistance_chain_correction[i] );
                     
                         i_tot_num_pe = (curand_normal(&s) * powf(num_electrons_leaving_dynode**probability_electron_ionized*(1-*probability_electron_ionized), 0.5)) + num_electrons_leaving_dynode**probability_electron_ionized;
+                    }
+                }
+            }
+            
+            if (i_poor_collection_electrons > 0)
+            {
+                for (int i = 0; i < (num_dynodes); i++)
+                {
+                
+                    if (i_poor_collection_electrons < 10000)
+                    {
+                        if (i_poor_collection_electrons < 15)
+                        {
+                            num_electrons_leaving_dynode = (int)gpu_discrete_gaussian(&s, *mean_e_from_dynode*i_poor_collection_electrons*a_resistance_chain_correction[i], *width_e_from_dynode*powf(i_poor_collection_electrons*a_resistance_chain_correction[i], 0.5));
+                            if (num_electrons_leaving_dynode < 1)
+                                continue;
+                        }
+                        else
+                            num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(i_poor_collection_electrons*a_resistance_chain_correction[i], 0.5)) + *mean_e_from_dynode*i_poor_collection_electrons*a_resistance_chain_correction[i] );
+                        
+                        
+                        
+                        i_poor_collection_electrons = gpu_binomial(&s, num_electrons_leaving_dynode, *probability_electron_ionized**poor_collection_ionization_correction);
+                    }
+                    else
+                    {
+                        num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(i_poor_collection_electrons*a_resistance_chain_correction[i], 0.5)) + *mean_e_from_dynode*i_poor_collection_electrons*a_resistance_chain_correction[i] );
+                    
+                        i_poor_collection_electrons = (curand_normal(&s) * powf(num_electrons_leaving_dynode**probability_electron_ionized**poor_collection_ionization_correction*(1-*probability_electron_ionized**poor_collection_ionization_correction), 0.5)) + num_electrons_leaving_dynode**probability_electron_ionized**poor_collection_ionization_correction;
+                    }
+                }
+            }
+            
+            if (pe_from_first_dynode > 0)
+            {
+                for (int i = 0; i < (num_dynodes-1); i++)
+                {
+                    ionization_correction_factor = *underamp_ionization_correction_max - fabsf((curand_uniform(&s) - 0.5)*2)**underamp_ionization_correction_slope;
+                    if (ionization_correction_factor > 1)
+                        ionization_correction_factor = 1;
+                    else if (ionization_correction_factor < 0)
+                        ionization_correction_factor = 0;
+                
+                    if (pe_from_first_dynode < 10000)
+                    {
+                        if (pe_from_first_dynode < 15)
+                        {
+                            num_electrons_leaving_dynode = (int)gpu_discrete_gaussian(&s, *mean_e_from_dynode*pe_from_first_dynode*a_resistance_chain_correction[i], *width_e_from_dynode*powf(pe_from_first_dynode*a_resistance_chain_correction[i], 0.5));
+                            if (num_electrons_leaving_dynode < 1)
+                                continue;
+                        }
+                        else
+                            num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(pe_from_first_dynode*a_resistance_chain_correction[i], 0.5)) + *mean_e_from_dynode*pe_from_first_dynode*a_resistance_chain_correction[i] );
+                        
+                        
+                        
+                        pe_from_first_dynode = gpu_binomial(&s, num_electrons_leaving_dynode, *probability_electron_ionized*ionization_correction_factor);
+                    }
+                    else
+                    {
+                        num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(pe_from_first_dynode*a_resistance_chain_correction[i], 0.5)) + *mean_e_from_dynode*pe_from_first_dynode*a_resistance_chain_correction[i] );
+                    
+                        pe_from_first_dynode = (curand_normal(&s) * powf(num_electrons_leaving_dynode**probability_electron_ionized*ionization_correction_factor*(1-*probability_electron_ionized*ionization_correction_factor), 0.5)) + num_electrons_leaving_dynode**probability_electron_ionized*ionization_correction_factor;
                     }
                 }
             }
@@ -641,8 +973,9 @@ __global__ void fixed_pe_cascade_spectrum(curandState *state, int *num_trials, i
                 continue;
                 //return;
             }
-            f_tot_num_pe = (curand_normal(&s) * *bkg_std) + *bkg_mean + i_tot_num_pe;
+            f_tot_num_pe = (curand_normal(&s) * *bkg_std) + *bkg_mean + i_tot_num_pe + pe_from_first_dynode + i_poor_collection_electrons;
             
+            //printf("tot %f\\n", f_tot_num_pe);
             
             if (*bkg_exp < 0)
             {
