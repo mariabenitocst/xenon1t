@@ -294,7 +294,7 @@ __global__ void setup_kernel (int nthreads, curandState *state, unsigned long lo
 
 
 
-__global__ void cascade_pmt_model(curandState *state, int *num_trials, int *num_loops, float *a_hist, float *mean_num_pe, float *prob_hit_first_dynode, float *collection_efficiency, float *mean_e_from_dynode, float *width_e_from_dynode, float *probability_electron_ionized, float *underamp_ionization_correction_max, float *underamp_ionization_correction_slope, float *poor_collection_ionization_correction, float *bkg_mean, float *bkg_std, float *bkg_exp, float *prob_exp_bkg, int *num_bins, float *bin_edges)
+__global__ void cascade_pmt_model(curandState *state, int *num_trials, int *num_loops, float *a_hist, float *mean_num_pe, float *prob_hit_first_dynode, float *collection_efficiency, float *mean_e_from_dynode, float *width_e_from_dynode, float *probability_electron_ionized, float *underamp_ionization_correction, float *poor_collection_ionization_correction, float *bkg_mean, float *bkg_std, float *bkg_exp, float *prob_exp_bkg, int *num_bins, float *bin_edges)
 {
     //printf("hello\\n");
     
@@ -405,7 +405,7 @@ __global__ void cascade_pmt_model(curandState *state, int *num_trials, int *num_
             {
                 for (int i = 0; i < (num_dynodes-1); i++)
                 {
-                    ionization_correction_factor = *underamp_ionization_correction_max - fabsf((curand_uniform(&s) - 0.5)*2)**underamp_ionization_correction_slope;
+                    ionization_correction_factor = *underamp_ionization_correction;
                     if (ionization_correction_factor > 1)
                         ionization_correction_factor = 1;
                     else if (ionization_correction_factor < 0)
@@ -480,7 +480,7 @@ __global__ void cascade_pmt_model(curandState *state, int *num_trials, int *num_
 
 
 
-__global__ void cascade_pmt_model_array(curandState *state, int *num_trials, int *num_loops, float *a_integrals, float *mean_num_pe, float *prob_hit_first_dynode, float *collection_efficiency, float *mean_e_from_dynode, float *width_e_from_dynode, float *probability_electron_ionized, float *underamp_ionization_correction_max, float *underamp_ionization_correction_slope, float *poor_collection_ionization_correction, float *bkg_mean, float *bkg_std, float *bkg_exp, float *prob_exp_bkg, int *num_bins, float *bin_edges)
+__global__ void cascade_pmt_model_array(curandState *state, int *num_trials, int *num_loops, float *a_integrals, float *mean_num_pe, float *prob_hit_first_dynode, float *collection_efficiency, float *mean_e_from_dynode, float *width_e_from_dynode, float *probability_electron_ionized, float *underamp_ionization_correction, float *poor_collection_ionization_correction, float *bkg_mean, float *bkg_std, float *bkg_exp, float *prob_exp_bkg, int *num_bins, float *bin_edges)
 {
     //printf("hello\\n");
     
@@ -592,7 +592,7 @@ __global__ void cascade_pmt_model_array(curandState *state, int *num_trials, int
             {
                 for (int i = 0; i < (num_dynodes-1); i++)
                 {
-                    ionization_correction_factor = *underamp_ionization_correction_max - fabsf((curand_uniform(&s) - 0.5)*2)**underamp_ionization_correction_slope;
+                    ionization_correction_factor = *underamp_ionization_correction;
                     if (ionization_correction_factor > 1)
                         ionization_correction_factor = 1;
                     else if (ionization_correction_factor < 0)
@@ -658,7 +658,7 @@ __global__ void cascade_pmt_model_array(curandState *state, int *num_trials, int
 
 
 
-__global__ void pure_cascade_spectrum(curandState *state, int *num_trials, float *a_hist, int *num_pe, float *prob_hit_first_dynode, float *collection_efficiency, float *mean_e_from_dynode, float *width_e_from_dynode, float *probability_electron_ionized, float *underamp_ionization_correction_max, float *underamp_ionization_correction_slope, float *poor_collection_ionization_correction, int *num_bins, float *bin_edges)
+__global__ void pure_cascade_spectrum(curandState *state, int *num_trials, float *a_hist, int *num_pe, float *prob_hit_first_dynode, float *collection_efficiency, float *mean_e_from_dynode, float *width_e_from_dynode, float *probability_electron_ionized, float *underamp_ionization_correction, float *poor_collection_ionization_correction, int *num_bins, float *bin_edges)
 {
     //printf("hello\\n");
     
@@ -764,7 +764,7 @@ __global__ void pure_cascade_spectrum(curandState *state, int *num_trials, float
         {
             for (int i = 0; i < (num_dynodes-1); i++)
             {
-                ionization_correction_factor = *underamp_ionization_correction_max - fabsf((curand_uniform(&s) - 0.5)*2)**underamp_ionization_correction_slope;
+                ionization_correction_factor = *underamp_ionization_correction;
                 if (ionization_correction_factor > 1)
                     ionization_correction_factor = 1;
                 else if (ionization_correction_factor < 0)
@@ -824,7 +824,7 @@ __global__ void pure_cascade_spectrum(curandState *state, int *num_trials, float
 
 
 
-__global__ void fixed_pe_cascade_spectrum(curandState *state, int *num_trials, int *num_loops, float *a_hist, int *num_pe, float *prob_hit_first_dynode, float *collection_efficiency, float *mean_e_from_dynode, float *width_e_from_dynode, float *probability_electron_ionized, float *underamp_ionization_correction_max, float *underamp_ionization_correction_slope, float *poor_collection_ionization_correction, float *bkg_mean, float *bkg_std, float *bkg_exp, float *prob_exp_bkg, int *num_bins, float *bin_edges)
+__global__ void fixed_pe_cascade_spectrum(curandState *state, int *num_trials, int *num_loops, float *a_hist, int *num_pe, float *prob_hit_first_dynode, float *collection_efficiency, float *mean_e_from_dynode, float *width_e_from_dynode, float *probability_electron_ionized, float *underamp_ionization_correction, float *poor_collection_ionization_correction, float *bkg_mean, float *bkg_std, float *bkg_exp, float *prob_exp_bkg, int *num_bins, float *bin_edges)
 {
 
     int iteration = blockIdx.x * blockDim.x * blockDim.y + threadIdx.y * blockDim.x + threadIdx.x;
@@ -936,7 +936,7 @@ __global__ void fixed_pe_cascade_spectrum(curandState *state, int *num_trials, i
             {
                 for (int i = 0; i < (num_dynodes-1); i++)
                 {
-                    ionization_correction_factor = *underamp_ionization_correction_max - fabsf((curand_uniform(&s) - 0.5)*2)**underamp_ionization_correction_slope;
+                    ionization_correction_factor = *underamp_ionization_correction;
                     if (ionization_correction_factor > 1)
                         ionization_correction_factor = 1;
                     else if (ionization_correction_factor < 0)

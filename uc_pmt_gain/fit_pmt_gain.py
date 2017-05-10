@@ -68,6 +68,7 @@ def array_poisson_binned_likelihood(a_model, a_data):
 
 def poisson_binned_likelihood(a_model, a_data):
     #print a_data*np.log(a_model) - a_model
+    a_model += 1e-6
 
     # this form matches ROOT's form
     mask = (a_model > 0) & (a_data > 0)
@@ -138,7 +139,7 @@ class fit_pmt_gain(object):
         self.filename = filename
         self.d_fit_files = {}
         
-        if not self.filename[:5] == 'nerix':
+        if not self.filename[:5] == 'nerix' and not self.filename == 'fake':
             try:
                 self.d_fit_files['a_integral'] = pickle.load(open('%s%s.p' % (self.data_dir, self.filename), 'r'))
             except:
@@ -161,7 +162,7 @@ class fit_pmt_gain(object):
             
             self.d_bkg_fit = pickle.load(open('./bkg_results/bkg_%s.p' % (filename), 'r'))
             self.b_nerix_file = False
-            
+        
         else:
             self.d_fit_files['a_integral'] = pickle.load(open('%s%s.p' % (self.data_dir, self.filename), 'r'))
         
@@ -175,38 +176,40 @@ class fit_pmt_gain(object):
             if self.file_identifier == '0062_0061':
                 self.d_fit_files['settings'] = [num_bins_uc, -1e6, 2e7]
                 # 690.5, 627
-                self.a_free_par_guesses = [8.68474612e-01, 9.30499278e-01, 1.62938302e+01, 9.78390522e-01, 1.83638855e-01, 9.81466501e-01, 7.54758800e-02, 9.04098762e-01, -7.77602977e+03, 2.52398378e+05, 1.29401921e+00, 9.97667221e-01]
+                self.a_free_par_guesses = [8.68474612e-01, 9.30499278e-01, 1.62938302e+01, 9.78390522e-01, 1.83638855e-01, 9.81466501e-01, 9.04098762e-01, -7.77602977e+03, 2.52398378e+05, 1.29401921e+00, 9.97667221e-01]
             
             elif self.file_identifier == '0066_0065':
                 self.d_fit_files['settings'] = [num_bins_uc, -1e6, 1.2e7]
                 # 654.2, 630
-                self.a_free_par_guesses = [9.00766838e-01, 9.41122046e-01, 1.45426600e+01, 1.02270004e+00, 1.97338291e-01, 9.64390466e-01, 1.48229264e-02, 9.14082193e-01, -1.00957537e+04, 2.53024237e+05, 1.22579673e+00, 1.00994334e+00]
+                self.a_free_par_guesses = [9.00766838e-01, 9.41122046e-01, 1.45426600e+01, 1.02270004e+00, 1.97338291e-01, 9.64390466e-01, 9.14082193e-01, -1.00957537e+04, 2.53024237e+05, 1.22579673e+00, 1.00994334e+00]
             
             elif self.file_identifier == '0067_0068':
                 self.d_fit_files['settings'] = [num_bins_uc, -1e6, 7.5e6]
-                # 603.3, 631
-                self.a_free_par_guesses = [0.9, 0.92, 1.60819351e+01/1.5, 0.1, 1.70374897e-01*1.5, 8.01266837e-01, 9.57298021e-02, 8.93358559e-01, -8.40038158e+03, 2.53940034e+05, 1.25, 1.00288479e+00]
-                #self.a_free_par_guesses = [0.92, 0.94, 1.46731550e+01/1.6, 0.2, 1.86629926e-01*1.6, 9.99032165e-01, 8.55549717e-03, 0.93, -1.03466070e+04, 2.54274397e+05, 1.2, 9.95261926e-01]
+                # 603.3, 451
+                self.a_free_par_guesses = [9.80871388e-01, 8.92911974e-01, 1.52550833e+01, 1.00407309e+00, 1.79592425e-01, 8.12041534e-01, 8.76785211e-01, -8.93680855e+03, 2.53804858e+05, 1.21247546e+00, 1.00175953e+00]
             
-            elif self.file_identifier == '0071_0072':
+            elif self.file_identifier == '0071_0072' or self.file_identifier == 'fake':
                 self.d_fit_files['settings'] = [num_bins_uc, -1e6, 3.4e7]
                 # 924.0, 642.1
-                self.a_free_par_guesses = [8.70231323e-01, 9.25274145e-01, 1.59644474e+01, 1.12789207e+00, 1.94743614e-01, 9.66331064e-01, 5.81437533e-02, 8.97645850e-01, -1.06349404e+04, 2.55661408e+05, 1.29756228e+00, 9.87788161e-01]
+                self.a_free_par_guesses = [8.70231323e-01, 9.25274145e-01, 1.59644474e+01, 1.12789207e+00, 1.94743614e-01, 9.66331064e-01, 8.97645850e-01, -1.06349404e+04, 2.55661408e+05, 1.29756228e+00, 9.87788161e-01]
             
             elif self.file_identifier == '0073_0074':
                 self.d_fit_files['settings'] = [num_bins_uc, -1e6, 4.2e7]
                # higher than 775, 775
-                self.a_free_par_guesses = [8.32113554e-01, 0.93, 1.56723784e+01, 2, 1.98235379e-01, 9.87604405e-01, 6.21452110e-02, 0.93, -8.89212604e+03, 2.55295976e+05, 2.31790622e+00, 1.00361107]
+                self.a_free_par_guesses = [8.32113554e-01, 0.93, 1.56723784e+01, 2, 1.98235379e-01, 9.87604405e-01, 0.93, -8.89212604e+03, 2.55295976e+05, 2.31790622e+00, 1.00361107]
 
             elif self.file_identifier == 'nerix_160418_1523':
                 self.d_fit_files['settings'] = [num_bins_nerix, -5e5, 3.e6]
-                # 441.4
-                self.a_free_par_guesses = [8.90712859e-01, 1.66714787e+01, 3.00510027e+00, 1.88360224e-01, 4.60245648e+04, 2.19142063e+05, 8.37482232e+05, 3.36004373e-01, 9.90214324e-01, 9.98298001e-01]
+                # 441.4, 455
+                #self.a_free_par_guesses = [8.90712859e-01, 1.66714787e+01, 3.00510027e+00, 1.88360224e-01, 4.60245648e+04, 2.19142063e+05, 8.37482232e+05, 3.36004373e-01, 9.90214324e-01, 9.98298001e-01]
+                self.a_free_par_guesses = [8.80889509e-01, 7.20739256e-01, 2.49475653e+01, 5.79469513e+00, 1.04382309e-01, 9.95594808e-01, 9.28083877e-01, 6.70948186e+04, 2.30687850e+05, 1.22440005e+00, 9.95667539e-01]
+
 
             elif self.file_identifier == 'nerix_160418_1531':
                 self.d_fit_files['settings'] = [num_bins_nerix, -5e5, 4.e6]
-                # 446.2
-                self.a_free_par_guesses = [9.46284674e-01, 1.50034713e+01, 1.37821848e+00, 2.08031481e-01, 9.14216492e+04, 2.30741466e+05, 1.83586129e+06, 4.01235507e-01, 1.87723373e+00, 9.95802364e-01]
+                # 446.2, 475.4
+                #self.a_free_par_guesses = [9.46284674e-01, 1.50034713e+01, 1.37821848e+00, 2.08031481e-01, 9.14216492e+04, 2.30741466e+05, 1.83586129e+06, 4.01235507e-01, 1.87723373e+00, 9.95802364e-01]
+                self.a_free_par_guesses = [8.70271092e-01, 7.09173592e-01, 2.65289819e+01, 3.03597339e+00, 9.81358677e-02, 9.91037781e-01, 9.39170417e-01, 9.98231918e+04, 2.43313474e+05, 2.24287929e+00,  9.95063740e-01]
             
             else:
                 print '\n\nSettings do not exist for given setup: %s\n\n' % (self.file_identifier)
@@ -355,30 +358,29 @@ class fit_pmt_gain(object):
 
 
             
-    def cascade_model_ln_likelihood(self, a_parameters):
-        if self.b_nerix_file:
-            prob_hit_first, mean_e_from_dynode, width_e_from_dynode, probability_electron_ionized, bkg_mean, bkg_std, bkg_exp, prob_exp_bkg, mean_num_pe, scale_par = a_parameters
-        else:
-            prob_hit_first, collection_efficiency, mean_e_from_dynode, width_e_from_dynode, probability_electron_ionized, underamp_ionization_correction_max, underamp_ionization_correction_slope, poor_collection_ionization_correction, bkg_mean, bkg_std, mean_num_pe, scale_par = a_parameters
-            bkg_exp, prob_exp_bkg = 1, 1e-20
+    def cascade_model_ln_likelihood(self, a_parameters, b_return_chi2_ndf=False):
+        
+        prob_hit_first, collection_efficiency, mean_e_from_dynode, width_e_from_dynode, probability_electron_ionized, underamp_ionization_correction, poor_collection_ionization_correction, bkg_mean, bkg_std, mean_num_pe, scale_par = a_parameters
+        bkg_exp, prob_exp_bkg = 1, 1e-20
 
         ln_prior = 0
         ln_likelihood = 0
 
         ln_prior += self.prior_between_0_and_1(prob_hit_first)
         ln_prior += self.prior_between_0_and_1(collection_efficiency)
-        ln_prior += self.prior_between_0_and_1(underamp_ionization_correction_max)
+        ln_prior += self.prior_between_0_and_1(underamp_ionization_correction)
         ln_prior += self.prior_greater_than_0(mean_e_from_dynode)
         ln_prior += self.prior_between_0_and_1(poor_collection_ionization_correction)
         ln_prior += self.prior_greater_than_0(width_e_from_dynode)
         ln_prior += self.prior_greater_than_0(bkg_std)
         ln_prior += self.prior_greater_than_0(mean_num_pe)
 
-        if self.b_nerix_file:
-            ln_prior += self.prior_greater_than_0(bkg_exp)
-            ln_prior += self.prior_between_0_and_1(prob_exp_bkg)
-        else:
+        if not self.b_nerix_file:
             ln_prior += self.prior_uc_bkg(bkg_mean, bkg_std)
+        
+        if not self.b_nerix_file:
+            if poor_collection_ionization_correction < 0.7 or underamp_ionization_correction < 0.7:
+                return -np.inf
         
         approximate_spe_mean = (mean_e_from_dynode*probability_electron_ionized)**12.
         #print approximate_spe_mean
@@ -399,8 +401,7 @@ class fit_pmt_gain(object):
         mean_e_from_dynode = np.asarray(mean_e_from_dynode, dtype=np.float32)
         width_e_from_dynode = np.asarray(width_e_from_dynode, dtype=np.float32)
         probability_electron_ionized = np.asarray(probability_electron_ionized, dtype=np.float32)
-        underamp_ionization_correction_max = np.asarray(underamp_ionization_correction_max, dtype=np.float32)
-        underamp_ionization_correction_slope = np.asarray(underamp_ionization_correction_slope, dtype=np.float32)
+        underamp_ionization_correction = np.asarray(underamp_ionization_correction, dtype=np.float32)
         poor_collection_ionization_correction = np.asarray(poor_collection_ionization_correction, dtype=np.float32)
         bkg_mean = np.asarray(bkg_mean, dtype=np.float32)
         bkg_std = np.asarray(bkg_std, dtype=np.float32)
@@ -412,13 +413,14 @@ class fit_pmt_gain(object):
         bin_edges = np.asarray(self.d_fit_files['bin_edges'], dtype=np.float32)
         
         
-        l_args_gpu = [self.rng_states, drv.In(num_trials), drv.In(self.num_loops), drv.InOut(a_hist), drv.In(mean_num_pe), drv.In(prob_hit_first), drv.In(collection_efficiency), drv.In(mean_e_from_dynode), drv.In(width_e_from_dynode), drv.In(probability_electron_ionized), drv.In(underamp_ionization_correction_max), drv.In(underamp_ionization_correction_slope), drv.In(poor_collection_ionization_correction), drv.In(bkg_mean), drv.In(bkg_std), drv.In(bkg_exp), drv.In(prob_exp_bkg), drv.In(num_bins), drv.In(bin_edges)]
+        l_args_gpu = [self.rng_states, drv.In(num_trials), drv.In(self.num_loops), drv.InOut(a_hist), drv.In(mean_num_pe), drv.In(prob_hit_first), drv.In(collection_efficiency), drv.In(mean_e_from_dynode), drv.In(width_e_from_dynode), drv.In(probability_electron_ionized), drv.In(underamp_ionization_correction), drv.In(poor_collection_ionization_correction), drv.In(bkg_mean), drv.In(bkg_std), drv.In(bkg_exp), drv.In(prob_exp_bkg), drv.In(num_bins), drv.In(bin_edges)]
     
     
         #start_time_mpe1 = time.time()
         self.gpu_cascade_model(*l_args_gpu, **self.d_gpu_scale)
         #print 'Time for MPE1 call: %f s' % (time.time() - start_time_spe)
         a_model = np.asarray(a_hist, dtype=np.float32)*np.sum(self.d_fit_files['hist'])/np.sum(a_hist)*scale_par
+
 
 
         ln_likelihood += poisson_binned_likelihood(a_model, self.d_fit_files['hist'])
@@ -434,16 +436,83 @@ class fit_pmt_gain(object):
         #print total_ln_likelihood
         #print np.sum( (a_model - self.d_fit_files['hist'])**2/self.d_fit_files['hist'] )
         
-        return total_ln_likelihood
+        if not b_return_chi2_ndf:
+            return total_ln_likelihood
+        else:
+            a_data = self.d_fit_files['hist']
+            mask = (a_model > 0) & (a_data > 0)
+            #mask_high =  (a_model[mask] - a_data[mask])**2. / a_data[mask] > 10
+            #print a_model[mask_high]
+            #print a_data[mask_high]
+            return np.sum((a_model[mask] - a_data[mask])**2. / a_model[mask]), num_bins - len(a_parameters)
+            #return 2*np.sum(a_data[mask]*np.log(a_data[mask] / a_model[mask]) + a_model[mask] - a_data[mask]), num_bins - len(a_parameters)
+            
+        
+        
+    def perform_ad_test_cascade(self, a_parameters, num_bootstrap_samples=1e4, num_bootstraps=200):
+        prob_hit_first, collection_efficiency, mean_e_from_dynode, width_e_from_dynode, probability_electron_ionized, underamp_ionization_correction, poor_collection_ionization_correction, bkg_mean, bkg_std, mean_num_pe, scale_par = a_parameters
+        bkg_exp, prob_exp_bkg = 1, 1e-20
+
+
+        a_integrals = np.full(self.num_mc_events, -1e10-1, dtype=np.float32)
+        
+        mean_num_pe = np.asarray(mean_num_pe, dtype=np.float32)
+        
+        num_trials = np.asarray(self.num_mc_events, dtype=np.int32)
+        prob_hit_first = np.asarray(prob_hit_first, dtype=np.float32)
+        collection_efficiency = np.asarray(collection_efficiency, dtype=np.float32)
+        mean_e_from_dynode = np.asarray(mean_e_from_dynode, dtype=np.float32)
+        width_e_from_dynode = np.asarray(width_e_from_dynode, dtype=np.float32)
+        probability_electron_ionized = np.asarray(probability_electron_ionized, dtype=np.float32)
+        underamp_ionization_correction = np.asarray(underamp_ionization_correction, dtype=np.float32)
+        poor_collection_ionization_correction = np.asarray(poor_collection_ionization_correction, dtype=np.float32)
+        bkg_mean = np.asarray(bkg_mean, dtype=np.float32)
+        bkg_std = np.asarray(bkg_std, dtype=np.float32)
+
+        bkg_exp = np.asarray(bkg_exp, dtype=np.float32)
+        prob_exp_bkg = np.asarray(prob_exp_bkg, dtype=np.float32)
+
+        l_args_gpu = [self.rng_states, drv.In(num_trials), drv.In(self.num_loops), drv.InOut(a_integrals), drv.In(mean_num_pe), drv.In(prob_hit_first), drv.In(collection_efficiency), drv.In(mean_e_from_dynode), drv.In(width_e_from_dynode), drv.In(probability_electron_ionized), drv.In(underamp_ionization_correction), drv.In(poor_collection_ionization_correction), drv.In(bkg_mean), drv.In(bkg_std), drv.In(bkg_exp), drv.In(prob_exp_bkg)]
+    
+    
+        self.gpu_cascade_model_arrays(*l_args_gpu, **self.d_gpu_scale)
+    
+        # now that we have the arrays for data and mc we need to bootstrap!
+        num_bootstrap_samples = int(num_bootstrap_samples)
+        num_to_choose_mc = int(2e5)
+        l_adstat_data = np.zeros(num_bootstraps)
+        l_adstat_synthetic = np.zeros(num_bootstraps)
+        
+        a_integrals = a_integrals[a_integrals > -1e10]
+        
+        
+        print '\n\nPerforming AD Test...\n\n'
+        
+        for i in tqdm.tqdm(xrange(num_bootstraps)):
+    
+            idx_mc = np.random.choice(len(a_integrals), num_to_choose_mc, replace=True)
+            idx_data = np.random.choice(len(self.d_fit_files['a_integral']), num_bootstrap_samples, replace=True)
+            idx_synthetic_data = np.random.choice(len(a_integrals), num_bootstrap_samples, replace=True)
+
+            adstat_data, pvalue_data = scipy.stats.ks_2samp(a_integrals[idx_mc], self.d_fit_files['a_integral'][idx_data])
+            adstat_synthetic_data, pvalue_synthetic_data = scipy.stats.ks_2samp(a_integrals[idx_mc], a_integrals[idx_synthetic_data])
+
+            l_adstat_data[i] = adstat_data
+            l_adstat_synthetic[i] = adstat_synthetic_data
+
+
+        #print l_adstat_data
+        #print l_adstat_synthetic
+        print 'median AD Stat: %f' % (np.median(l_adstat_data))
+        print 'Percentage synthetic above median: %.4f\n\n\n' % (len(l_adstat_synthetic[l_adstat_synthetic > np.median(l_adstat_data)]) / float(num_bootstraps))
+    
+        
         
         
         
     def create_fake_data_cascade(self, a_parameters):
-        if self.b_nerix_file:
-            prob_hit_first, mean_e_from_dynode, width_e_from_dynode, probability_electron_ionized, bkg_mean, bkg_std, bkg_exp, prob_exp_bkg, mean_num_pe, scale_par = a_parameters
-        else:
-            prob_hit_first, mean_e_from_dynode, width_e_from_dynode, probability_electron_ionized, underamp_ionization_correction, bkg_mean, bkg_std, mean_num_pe, scale_par = a_parameters
-            bkg_exp, prob_exp_bkg = 1, 1e-20
+        prob_hit_first, collection_efficiency, mean_e_from_dynode, width_e_from_dynode, probability_electron_ionized, underamp_ionization_correction, poor_collection_ionization_correction, bkg_mean, bkg_std, mean_num_pe, scale_par = a_parameters
+        bkg_exp, prob_exp_bkg = 1, 1e-20
 
 
         a_integrals = np.zeros(self.num_mc_events, dtype=np.float32)
@@ -452,17 +521,19 @@ class fit_pmt_gain(object):
         
         num_trials = np.asarray(self.num_mc_events, dtype=np.int32)
         prob_hit_first = np.asarray(prob_hit_first, dtype=np.float32)
+        collection_efficiency = np.asarray(collection_efficiency, dtype=np.float32)
         mean_e_from_dynode = np.asarray(mean_e_from_dynode, dtype=np.float32)
         width_e_from_dynode = np.asarray(width_e_from_dynode, dtype=np.float32)
         probability_electron_ionized = np.asarray(probability_electron_ionized, dtype=np.float32)
         underamp_ionization_correction = np.asarray(underamp_ionization_correction, dtype=np.float32)
+        poor_collection_ionization_correction = np.asarray(poor_collection_ionization_correction, dtype=np.float32)
         bkg_mean = np.asarray(bkg_mean, dtype=np.float32)
         bkg_std = np.asarray(bkg_std, dtype=np.float32)
 
         bkg_exp = np.asarray(bkg_exp, dtype=np.float32)
         prob_exp_bkg = np.asarray(prob_exp_bkg, dtype=np.float32)
 
-        l_args_gpu = [self.rng_states, drv.In(num_trials), drv.In(self.num_loops), drv.InOut(a_integrals), drv.In(mean_num_pe), drv.In(prob_hit_first), drv.In(mean_e_from_dynode), drv.In(width_e_from_dynode), drv.In(probability_electron_ionized), drv.In(underamp_ionization_correction), drv.In(bkg_mean), drv.In(bkg_std), drv.In(bkg_exp), drv.In(prob_exp_bkg)]
+        l_args_gpu = [self.rng_states, drv.In(num_trials), drv.In(self.num_loops), drv.InOut(a_integrals), drv.In(mean_num_pe), drv.In(prob_hit_first), drv.In(collection_efficiency), drv.In(mean_e_from_dynode), drv.In(width_e_from_dynode), drv.In(probability_electron_ionized), drv.In(underamp_ionization_correction), drv.In(poor_collection_ionization_correction), drv.In(bkg_mean), drv.In(bkg_std), drv.In(bkg_exp), drv.In(prob_exp_bkg)]
     
     
         self.gpu_cascade_model_arrays(*l_args_gpu, **self.d_gpu_scale)
@@ -470,14 +541,14 @@ class fit_pmt_gain(object):
         #plt.hist(a_integrals, bins=50)
         #plt.show()
     
-        return a_integrals
+        pickle.dump(a_integrals, open('./data/fake.p', 'w'))
     
     
     
     def run_mcmc(self, num_walkers=32, num_steps=2000, threads=1):
         
         l_value_guesses = self.a_free_par_guesses
-        l_std_guesses = 0.03*np.asarray(l_value_guesses)
+        l_std_guesses = 0.005*np.asarray(l_value_guesses)
 
         
         
@@ -577,11 +648,9 @@ class fit_pmt_gain(object):
     
     
     def draw_cascade_model_fit(self, a_parameters, name_for_save=''):
-        if self.b_nerix_file:
-            prob_hit_first, mean_e_from_dynode, width_e_from_dynode, probability_electron_ionized, bkg_mean, bkg_std, bkg_exp, prob_exp_bkg, mean_num_pe, scale_par = a_parameters
-        else:
-            prob_hit_first, collection_efficiency, mean_e_from_dynode, width_e_from_dynode, probability_electron_ionized, underamp_ionization_correction_max, underamp_ionization_correction_slope, poor_collection_ionization_correction, bkg_mean, bkg_std, mean_num_pe, scale_par = a_parameters
-            bkg_exp, prob_exp_bkg = 1, 1e-20
+     
+        prob_hit_first, collection_efficiency, mean_e_from_dynode, width_e_from_dynode, probability_electron_ionized, underamp_ionization_correction, poor_collection_ionization_correction, bkg_mean, bkg_std, mean_num_pe, scale_par = a_parameters
+        bkg_exp, prob_exp_bkg = 1, 1e-20
         
         
         
@@ -595,8 +664,7 @@ class fit_pmt_gain(object):
         mean_e_from_dynode = np.asarray(mean_e_from_dynode, dtype=np.float32)
         width_e_from_dynode = np.asarray(width_e_from_dynode, dtype=np.float32)
         probability_electron_ionized = np.asarray(probability_electron_ionized, dtype=np.float32)
-        underamp_ionization_correction_max = np.asarray(underamp_ionization_correction_max, dtype=np.float32)
-        underamp_ionization_correction_slope = np.asarray(underamp_ionization_correction_slope, dtype=np.float32)
+        underamp_ionization_correction = np.asarray(underamp_ionization_correction, dtype=np.float32)
         poor_collection_ionization_correction = np.asarray(poor_collection_ionization_correction, dtype=np.float32)
         bkg_mean = np.asarray(bkg_mean, dtype=np.float32)
         bkg_std = np.asarray(bkg_std, dtype=np.float32)
@@ -608,7 +676,7 @@ class fit_pmt_gain(object):
         bin_edges = np.asarray(self.d_fit_files['bin_edges'], dtype=np.float32)
         
         
-        l_args_gpu = [self.rng_states, drv.In(num_trials), drv.In(self.num_loops), drv.InOut(a_hist), drv.In(mean_num_pe), drv.In(prob_hit_first), drv.In(collection_efficiency), drv.In(mean_e_from_dynode), drv.In(width_e_from_dynode), drv.In(probability_electron_ionized), drv.In(underamp_ionization_correction_max), drv.In(underamp_ionization_correction_slope), drv.In(poor_collection_ionization_correction), drv.In(bkg_mean), drv.In(bkg_std), drv.In(bkg_exp), drv.In(prob_exp_bkg), drv.In(num_bins), drv.In(bin_edges)]
+        l_args_gpu = [self.rng_states, drv.In(num_trials), drv.In(self.num_loops), drv.InOut(a_hist), drv.In(mean_num_pe), drv.In(prob_hit_first), drv.In(collection_efficiency), drv.In(mean_e_from_dynode), drv.In(width_e_from_dynode), drv.In(probability_electron_ionized), drv.In(underamp_ionization_correction), drv.In(poor_collection_ionization_correction), drv.In(bkg_mean), drv.In(bkg_std), drv.In(bkg_exp), drv.In(prob_exp_bkg), drv.In(num_bins), drv.In(bin_edges)]
     
     
         #start_time_mpe1 = time.time()
@@ -629,7 +697,7 @@ class fit_pmt_gain(object):
         if not name_for_save == '':
             pickle.dump(a_model, open('./%s.p' % (name_for_save), 'w'))
     
-        plt.show()
+        #plt.show()
     
     
     
@@ -681,17 +749,16 @@ class fit_pmt_gain(object):
                 mean_e_from_dynode = a_sampler[i][2]
                 width_e_from_dynode = a_sampler[i][3]
                 probability_electron_ionized = a_sampler[i][4]
-                underamp_ionization_correction_max = a_sampler[i][5]
-                underamp_ionization_correction_slope = a_sampler[i][6]
-                poor_collection_ionization_correction = a_sampler[i][7]
+                underamp_ionization_correction = a_sampler[i][5]
+                poor_collection_ionization_correction = a_sampler[i][6]
             
                 if not self.b_nerix_file:
-                    bkg_mean = a_sampler[i][8]
-                    bkg_std = a_sampler[i][9]
+                    bkg_mean = a_sampler[i][7]
+                    bkg_std = a_sampler[i][8]
                     bkg_exp = 1
                     prob_exp_bkg = 1e-20
-                    mean_num_pe = a_sampler[i][10]
-                    scale_par = a_sampler[i][11]
+                    mean_num_pe = a_sampler[i][9]
+                    scale_par = a_sampler[i][10]
                 else:
                     bkg_mean = a_sampler[i][4]
                     bkg_std = a_sampler[i][5]
@@ -738,8 +805,7 @@ class fit_pmt_gain(object):
                 width_e_from_dynode = np.asarray(width_e_from_dynode, dtype=np.float32)
                 probability_electron_ionized = np.asarray(probability_electron_ionized, dtype=np.float32)
                 collection_efficiency = np.asarray(collection_efficiency, dtype=np.float32)
-                underamp_ionization_correction_max = np.asarray(underamp_ionization_correction_max, dtype=np.float32)
-                underamp_ionization_correction_slope = np.asarray(underamp_ionization_correction_slope, dtype=np.float32)
+                underamp_ionization_correction = np.asarray(underamp_ionization_correction, dtype=np.float32)
                 poor_collection_ionization_correction = np.asarray(poor_collection_ionization_correction, dtype=np.float32)
             else:
                 spe_mean = np.asarray(spe_mean, dtype=np.float32)
@@ -758,7 +824,7 @@ class fit_pmt_gain(object):
             
             
             if self.b_use_cascade_model:
-                l_args_gpu = [self.rng_states, drv.In(num_trials), drv.In(self.num_loops), drv.InOut(a_hist), drv.In(mean_num_pe), drv.In(prob_hit_first), drv.In(collection_efficiency), drv.In(mean_e_from_dynode), drv.In(width_e_from_dynode), drv.In(probability_electron_ionized), drv.In(underamp_ionization_correction_max), drv.In(underamp_ionization_correction_slope), drv.In(poor_collection_ionization_correction), drv.In(bkg_mean), drv.In(bkg_std), drv.In(bkg_exp), drv.In(prob_exp_bkg), drv.In(num_bins), drv.In(bin_edges)]
+                l_args_gpu = [self.rng_states, drv.In(num_trials), drv.In(self.num_loops), drv.InOut(a_hist), drv.In(mean_num_pe), drv.In(prob_hit_first), drv.In(collection_efficiency), drv.In(mean_e_from_dynode), drv.In(width_e_from_dynode), drv.In(probability_electron_ionized), drv.In(underamp_ionization_correction), drv.In(poor_collection_ionization_correction), drv.In(bkg_mean), drv.In(bkg_std), drv.In(bkg_exp), drv.In(prob_exp_bkg), drv.In(num_bins), drv.In(bin_edges)]
                 self.gpu_cascade_model(*l_args_gpu, **self.d_gpu_scale)
             else:
                 l_args_gpu = [self.rng_states, drv.In(num_trials), drv.In(self.num_loops), drv.InOut(a_hist), drv.In(mean_num_pe), drv.In(prob_hit_first), drv.In(spe_mean), drv.In(spe_std), drv.In(under_amp_mean), drv.In(under_amp_std), drv.In(bkg_mean), drv.In(bkg_std), drv.In(bkg_exp), drv.In(prob_exp_bkg), drv.In(num_bins), drv.In(bin_edges)]
@@ -775,7 +841,7 @@ class fit_pmt_gain(object):
         
             # gather inputs for pure spec
             if self.b_use_cascade_model:
-                l_pure_spec = [self.rng_states, drv.In(num_trials), drv.InOut(a_hist_pure), drv.In(np.asarray(1, dtype=np.int32)), drv.In(prob_hit_first), drv.In(collection_efficiency), drv.In(mean_e_from_dynode), drv.In(width_e_from_dynode), drv.In(probability_electron_ionized), drv.In(underamp_ionization_correction_max), drv.In(underamp_ionization_correction_slope), drv.In(poor_collection_ionization_correction), drv.In(num_bins), drv.In(bin_edges)]
+                l_pure_spec = [self.rng_states, drv.In(num_trials), drv.InOut(a_hist_pure), drv.In(np.asarray(1, dtype=np.int32)), drv.In(prob_hit_first), drv.In(collection_efficiency), drv.In(mean_e_from_dynode), drv.In(width_e_from_dynode), drv.In(probability_electron_ionized), drv.In(underamp_ionization_correction), drv.In(poor_collection_ionization_correction), drv.In(num_bins), drv.In(bin_edges)]
                 self.gpu_pure_cascade_spectrum(*l_pure_spec, **self.d_gpu_scale)
             else:
                 l_pure_spec = [self.rng_states, drv.In(num_trials), drv.InOut(a_hist_pure), drv.In(np.asarray(1, dtype=np.int32)), drv.In(spe_mean), drv.In(spe_std), drv.In(num_bins), drv.In(bin_edges)]
@@ -819,8 +885,9 @@ class fit_pmt_gain(object):
         ax1.set_title('Integrated Charge Spectrum - %s' % (self.file_identifier))
         ax1.set_xlabel(r'Integrated Charge [$e^{-}$]')
         ax1.set_ylabel('Counts')
+        ax1.set_ylim(20, max(a_y_values)*1.1)
 
-        ax1.set_ylim(np.min(a_y_values)/1.5, 2*np.max(a_y_values))
+        #ax1.set_ylim(np.min(a_y_values)/1.5, 2*np.max(a_y_values))
         
         
         
@@ -845,7 +912,7 @@ class fit_pmt_gain(object):
         f3.savefig(self.s_directory_save_plots_name + self.s_base_save_name + '_pure_%s.png' % (self.file_identifier))
 
     
-        plt.show()
+        #plt.show()
 
 
 
@@ -1064,7 +1131,7 @@ class fit_pmt_gain(object):
         l_colors = ['r', 'b', 'g', 'c', 'y', 'm', 'brown']
         
         if self.b_use_cascade_model:
-            prob_hit_first, collection_efficiency, mean_e_from_dynode, width_e_from_dynode, probability_electron_ionized, underamp_ionization_correction_max, underamp_ionization_correction_slope, poor_collection_ionization_correction, bkg_mean, bkg_std, mean_num_pe, scale_par = a_best_fit_pars
+            prob_hit_first, collection_efficiency, mean_e_from_dynode, width_e_from_dynode, probability_electron_ionized, underamp_ionization_correction, poor_collection_ionization_correction, bkg_mean, bkg_std, mean_num_pe, scale_par = a_best_fit_pars
             
             #print 'Testing best fit from diff ev'
             #prob_hit_first, collection_efficiency, mean_e_from_dynode, width_e_from_dynode, probability_electron_ionized, underamp_ionization_correction_max, underamp_ionization_correction_slope, poor_collection_ionization_correction, bkg_mean, bkg_std, mean_num_pe, scale_par = self.a_free_par_guesses
@@ -1099,9 +1166,8 @@ class fit_pmt_gain(object):
             
             collection_efficiency = np.asarray(collection_efficiency, dtype=np.float32)
             poor_collection_ionization_correction = np.asarray(poor_collection_ionization_correction, dtype=np.float32)
-            underamp_ionization_correction_max = np.asarray(underamp_ionization_correction_max, dtype=np.float32)
-            underamp_ionization_correction_slope = np.asarray(underamp_ionization_correction_slope, dtype=np.float32)
-            
+            underamp_ionization_correction = np.asarray(underamp_ionization_correction, dtype=np.float32)
+        
             #print 'Fixing underamp correction to 1 from %f' % (underamp_ionization_correction)
             #underamp_ionization_correction = np.asarray(1., dtype=np.float32)
         else:
@@ -1126,7 +1192,7 @@ class fit_pmt_gain(object):
             num_pe = np.asarray(num_pe, dtype=np.int32)
         
             if self.b_use_cascade_model:
-                l_args_gpu = [self.rng_states, drv.In(num_trials), drv.In(self.num_loops), drv.InOut(current_hist), drv.In(num_pe), drv.In(prob_hit_first), drv.In(collection_efficiency), drv.In(mean_e_from_dynode), drv.In(width_e_from_dynode), drv.In(probability_electron_ionized), drv.In(underamp_ionization_correction_max), drv.In(underamp_ionization_correction_slope), drv.In(poor_collection_ionization_correction), drv.In(bkg_mean), drv.In(bkg_std), drv.In(bkg_exp), drv.In(prob_exp_bkg), drv.In(num_bins), drv.In(bin_edges)]
+                l_args_gpu = [self.rng_states, drv.In(num_trials), drv.In(self.num_loops), drv.InOut(current_hist), drv.In(num_pe), drv.In(prob_hit_first), drv.In(collection_efficiency), drv.In(mean_e_from_dynode), drv.In(width_e_from_dynode), drv.In(probability_electron_ionized), drv.In(underamp_ionization_correction), drv.In(poor_collection_ionization_correction), drv.In(bkg_mean), drv.In(bkg_std), drv.In(bkg_exp), drv.In(prob_exp_bkg), drv.In(num_bins), drv.In(bin_edges)]
                 self.gpu_fixed_pe_cascade_spectrum(*l_args_gpu, **self.d_gpu_scale)
             else:
                 l_args_gpu = [self.rng_states, drv.In(num_trials), drv.In(self.num_loops), drv.InOut(current_hist), drv.In(num_pe), drv.In(prob_hit_first), drv.In(spe_mean), drv.In(spe_std), drv.In(under_amp_mean), drv.In(under_amp_std), drv.In(bkg_mean), drv.In(bkg_std), drv.In(bkg_exp), drv.In(prob_exp_bkg), drv.In(num_bins), drv.In(bin_edges)]
@@ -1160,7 +1226,8 @@ class fit_pmt_gain(object):
             ax1.plot(self.d_fit_files['bin_centers_plots'], l_hists[i], color=l_colors[i])
         #ax1.plot(self.d_fit_files['bin_centers_plots'], sum_hist, color='darkorange', linestyle='-')
 
-        ax1.set_ylim(np.min(a_y_values)/1.5, 2*np.max(a_y_values))
+        #ax1.set_ylim(np.min(a_y_values)/1.5, 2*np.max(a_y_values))
+        ax1.set_ylim(20, np.max(a_y_values)*1.1)
 
         ax1.set_title('Integrated Charge Spectrum - %s' % (self.file_identifier))
         ax1.set_xlabel(r'Integrated Charge [$e^{-}$]')
@@ -1178,7 +1245,7 @@ class fit_pmt_gain(object):
         num_trials = np.asarray(self.num_mc_events, dtype=np.int32)
         
         if self.b_use_cascade_model:
-            l_args_gpu = [self.rng_states, drv.In(num_trials), drv.In(self.num_loops), drv.InOut(a_hist), drv.In(mean_num_pe), drv.In(prob_hit_first), drv.In(collection_efficiency), drv.In(mean_e_from_dynode), drv.In(width_e_from_dynode), drv.In(probability_electron_ionized), drv.In(underamp_ionization_correction_max), drv.In(underamp_ionization_correction_slope), drv.In(poor_collection_ionization_correction), drv.In(bkg_mean), drv.In(bkg_std), drv.In(bkg_exp), drv.In(prob_exp_bkg), drv.In(num_bins), drv.In(bin_edges)]
+            l_args_gpu = [self.rng_states, drv.In(num_trials), drv.In(self.num_loops), drv.InOut(a_hist), drv.In(mean_num_pe), drv.In(prob_hit_first), drv.In(collection_efficiency), drv.In(mean_e_from_dynode), drv.In(width_e_from_dynode), drv.In(probability_electron_ionized), drv.In(underamp_ionization_correction), drv.In(poor_collection_ionization_correction), drv.In(bkg_mean), drv.In(bkg_std), drv.In(bkg_exp), drv.In(prob_exp_bkg), drv.In(num_bins), drv.In(bin_edges)]
             self.gpu_cascade_model(*l_args_gpu, **self.d_gpu_scale)
         else:
             l_args_gpu = [self.rng_states, drv.In(num_trials), drv.In(self.num_loops), drv.InOut(a_hist), drv.In(mean_num_pe), drv.In(prob_hit_first), drv.In(spe_mean), drv.In(spe_std), drv.In(under_amp_mean), drv.In(under_amp_std), drv.In(bkg_mean), drv.In(bkg_std), drv.In(bkg_exp), drv.In(prob_exp_bkg), drv.In(num_bins), drv.In(bin_edges)]
@@ -1200,7 +1267,12 @@ class fit_pmt_gain(object):
         
         f1.savefig('%s%s_pe_specs_%s.png' % (self.s_directory_save_plots_name, self.s_base_save_name, self.file_identifier))
         
-        plt.show()
+        best_chi2, ndf = self.cascade_model_ln_likelihood(a_best_fit_pars, True)
+        print '\n\nChi2 / NDF: %.2f / %d\n\n' % (best_chi2, ndf)
+
+        self.perform_ad_test_cascade(a_best_fit_pars)
+
+        #plt.show()
     
     
     
@@ -1349,7 +1421,7 @@ class fit_pmt_gain(object):
         ax1.errorbar(a_x_values, a_y_values, xerr=[a_x_err_low, a_x_err_high], yerr=[a_y_err_low, a_y_err_high], color='r', fmt='.')
         
         
-        plt.show()
+        #plt.show()
 
 
 
@@ -1483,7 +1555,7 @@ class fit_pmt_gain(object):
         ax1.set_xlabel(r'Integrated Charge [$e^{-}$]')
         ax1.set_ylabel('Counts')
         
-        plt.show()
+        #plt.show()
         
         
         return modified_lr / num_bins**0.5 / omega_squared**0.5
@@ -1539,11 +1611,13 @@ if __name__ == '__main__':
     #filename = 'nerix_160418_1523'
     #filename = 'nerix_160418_1531'
     
-    #filename = 'darkbox_spectra_0062_0061'
+    filename = 'darkbox_spectra_0062_0061'
     #filename = 'darkbox_spectra_0066_0065'
-    filename = 'darkbox_spectra_0067_0068'
+    #filename = 'darkbox_spectra_0067_0068'
     #filename = 'darkbox_spectra_0071_0072'
     #filename = 'darkbox_spectra_0073_0074'
+    
+    #filename = 'fake'
     
     gpu_number = 0
   
@@ -1556,21 +1630,31 @@ if __name__ == '__main__':
     #print test.cascade_model_ln_likelihood([9.94483485e-01, 5.39660840e+00, 2.74193444e-01, 6.74188193e-01, -2.72858245e+04, 2.55464134e+05, 1.10827694e+00, 9.98743490e-01])
     #print test.cascade_model_ln_likelihood(test.a_free_par_guesses)
     #test.draw_cascade_model_fit(test.a_free_par_guesses, name_for_save='smear_photon_first_dynode_only_with_ce')
-    #print test.create_fake_data_cascade(test.a_free_par_guesses)
+    
+    # do not uncomment unless you want to overwrite!!
+    #test.create_fake_data_cascade(test.a_free_par_guesses)
     
     #test.draw_model_with_error_bands(num_walkers=64, num_steps_to_include=10)
-    #test.draw_model_fit_with_peaks(num_walkers=64, num_steps_to_include=30)
+    test.draw_model_fit_with_peaks(num_walkers=64, num_steps_to_include=30)
+    
+    
+    # neriX
+    #test.draw_cascade_model_fit([0.98, 0.8, 25.73, 1, 0.1, 9.81466501e-01, 9.04098762e-01, 1e5, 2.5e5, 1.05, 9.97667221e-01])
+    #test.draw_cascade_model_fit(test.a_free_par_guesses)
+    #print test.cascade_model_ln_likelihood([0.98, 0.8, 25.73, 1, 0.1, 9.81466501e-01, 9.04098762e-01, 1e5, 2.5e5, 1.05, 9.97667221e-01])
+    
+    
 
     # UC
     # 8.58050728e-01, 8.90563648e-01, 1.64499832e+01, 5.44343790e+00, 1.89011347e-01, 9.88813781e-01, 6.75697289e-02, 7.04088588e-01, -9.72548066e+03, 2.54704687e+05, 2.51448393e+00, 9.81073982e-01
     # JUST USE THE ONES IN A_FREE_PAR_GUESSES
     #a_bounds = [(0.75, 1), (0.8, 1.0), (14.5, 16.5), (0.5, 6.5), (0.1, 0.5), (0.8, 1.0), (0, 0.1), (0.8, 0.99), (-1e5, 1e5), (5e4, 8e5), (0.6, 3.), (0.98, 1.02)]
     # neriX
-    #a_bounds = [(0.5, 1), (15, 35), (0.01, 3.5), (0, 0.5), (-1e5, 1e5), (5e4, 8e5), (1e4, 2e6), (0, 0.5), (0.6, 3.), (0.9, 1.1)]
+    #a_bounds = [(0.8, 1), (0.7, 1.0), (23, 27.5), (0.5, 6.5), (0.02, 0.2), (0.8, 1.0), (0.8, 0.99), (-4e5, 4e5), (5e4, 7e5), (0.8, 2.5), (0.98, 1.02)]
     #test.differential_evolution_minimizer(a_bounds, maxiter=150, tol=0.05, popsize=20, polish=False)
 
-    test.suppress_likelihood()
-    #test.run_mcmc(num_walkers=64, num_steps=300, threads=1)
+    #test.suppress_likelihood()
+    #test.run_mcmc(num_walkers=64, num_steps=250, threads=1)
     
     
     

@@ -56,9 +56,9 @@ else:
 
 if b_cascade:
     if not filename[:5] == 'nerix':
-        l_free_pars = ['p_hit_first_dynode', 'collection_efficiency', 'mean_electrons_per_dynode', 'width_electrons_per_dynode', 'p_e_freed', 'underamp_ionization_correction_max', 'underamp_ionization_correction_slope', 'poor_collection_ionization_correction', 'bkg_mean', 'bkg_std', 'mean_num_pe_mpe', 'scale_par']
+        l_free_pars = ['p_hit_first_dynode', 'collection_efficiency', 'mean_electrons_per_dynode', 'width_electrons_per_dynode', 'p_e_freed', 'underamp_ionization_correction', 'poor_collection_ionization_correction', 'bkg_mean', 'bkg_std', 'mean_num_pe_mpe', 'scale_par']
     else:
-        l_free_pars = ['p_hit_first_dynode', 'mean_electrons_per_dynode', 'width_electrons_per_dynode', 'p_e_freed', 'bkg_mean', 'bkg_std', 'mean_num_pe_mpe', 'scale_par']
+        l_free_pars = ['p_hit_first_dynode', 'collection_efficiency', 'mean_electrons_per_dynode', 'width_electrons_per_dynode', 'p_e_freed', 'underamp_ionization_correction', 'poor_collection_ionization_correction', 'bkg_mean', 'bkg_std', 'mean_num_pe_mpe', 'scale_par']
 
 else:
     if not filename[:5] == 'nerix':
@@ -80,7 +80,11 @@ samples = a_full_sampler[:, -num_steps:, :].reshape((-1, num_dim))
 print samples.shape
 start_time = time.time()
 print 'Starting corner plot...\n'
-fig = corner.corner(samples, labels=l_free_pars, quantiles=[0.16, 0.5, 0.84], show_titles=True, title_fmt='.3e', title_kwargs={"fontsize": 12})
+if not filename == 'fake':
+    fig = corner.corner(samples, labels=l_free_pars, quantiles=[0.16, 0.5, 0.84], show_titles=True, title_fmt='.3e', title_kwargs={"fontsize": 12})
+else:
+    a_true_values = [8.70231323e-01, 9.25274145e-01, 1.59644474e+01, 1.12789207e+00, 1.94743614e-01, 9.66331064e-01, 8.97645850e-01, -1.06349404e+04, 2.55661408e+05, 1.29756228e+00, 9.87788161e-01]
+    fig = corner.corner(samples, labels=l_free_pars, quantiles=[0.16, 0.5, 0.84], truths=a_true_values, show_titles=True, title_fmt='.3e', title_kwargs={"fontsize": 12})
 print 'Corner plot took %.3f minutes.\n\n' % ((time.time()-start_time)/60.)
 
 
@@ -133,7 +137,7 @@ for i, par_name in enumerate(l_free_pars):
     current_handle, = a_gr.plot(l_size_for_test, d_gr_stats[par_name], color=l_colors[i], linestyle='-', label=par_name)
     l_legend_handles.append(current_handle)
 
-a_gr.plot(l_size_for_test, [1.1 for i in xrange(len(l_size_for_test))], linestyle='--', color='black')
+#a_gr.plot(l_size_for_test, [1.1 for i in xrange(len(l_size_for_test))], linestyle='--', color='black')
 a_gr.set_ylim([1, 20])
 a_gr.set_yscale('log')
 a_gr.legend(handles=l_legend_handles, loc='best', fontsize=6)
