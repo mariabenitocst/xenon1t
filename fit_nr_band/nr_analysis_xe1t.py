@@ -16,9 +16,10 @@ import ROOT as root
 
 
 class nr_analysis_xe1t(object):
-    def __init__(self, identifier, lax_version, num_mc_events, num_walkers, num_steps_to_include, device_number=0, b_mc_paper_mode=False, wimp_mass=False, b_conservative_acceptance_posterior=False):
+    def __init__(self, identifier, lax_version, num_mc_events, num_walkers, num_steps_to_include, device_number=0, b_mc_paper_mode=False, wimp_mass=False, b_conservative_acceptance_posterior=False, hist_mode=False):
     
         self.identifier = identifier
+        self.hist_mode = hist_mode
         #l_possible_identifiers = ['ambe', 'wimp', 'radiogenic_neutron', 'uniform_nr', 'band']
         l_possible_identifiers = ['cnns', 'radiogenic_neutron', 'uniform_nr', 'ambe', 'ambe_f', 'ambe_ms', 'wimp']
     
@@ -593,7 +594,10 @@ class nr_analysis_xe1t(object):
         # get observables function
 
         if self.identifier == 'cnns' or self.identifier == 'radiogenic_neutron' or self.identifier[:4] == 'wimp':
-            gpu_function_name = 'gpu_full_observables_production_with_arrays_no_fv'
+            if self.hist_mode:
+                gpu_function_name = 'gpu_full_observables_production_with_s2_hist_no_fv'
+            else:
+                gpu_function_name = 'gpu_full_observables_production_with_arrays_no_fv'
         elif self.identifier == 'ambe':
             gpu_function_name = 'gpu_full_observables_production_with_arrays'
         elif self.identifier == 'uniform_nr':

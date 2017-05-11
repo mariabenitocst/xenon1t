@@ -46,10 +46,10 @@ for i in tqdm.tqdm(xrange(num_random_events)):
     h_er.GetRandom2(x, y)
     s1 = float(x)
     log_s2_s1 = float(y)
-    print 'Correcting for S2 total'
-    s2 = 10**log_s2_s1 * s1
-    s2 /= 0.35
-    log_s2_s1 = np.log10(s2/s1)
+    #print 'Correcting for S2 total'
+    #s2 = 10**log_s2_s1 * s1
+    #s2 /= 0.35
+    #log_s2_s1 = np.log10(s2/s1)
     a_s1[i], a_log[i] = s1, log_s2_s1
 
 

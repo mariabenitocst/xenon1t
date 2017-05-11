@@ -95,12 +95,12 @@ df_ambe_data = df_ambe_data[df_ambe_data['CutS1MaxPMT']]
 
 # other cuts
 #df_ambe_data = df_ambe_data[(df_ambe_data['cs2_new'] > 200.) & (df_ambe_data['cs1'] > config_xe1t.l_s1_settings[1]) & (df_ambe_data['cs1'] < config_xe1t.l_s1_settings[2]) & (np.log10(df_ambe_data['cs2_bottom_new']/df_ambe_data['cs1']) > config_xe1t.l_log_settings[1]) & (np.log10(df_ambe_data['cs2_bottom_new']/df_ambe_data['cs1']) < config_xe1t.l_log_settings[2])]
-#df_ambe_data = df_ambe_data[(df_ambe_data['cs2_new'] > 200.) & (df_ambe_data['cs1'] > config_xe1t.l_s1_settings[1]) & (df_ambe_data['cs1'] < config_xe1t.l_s1_settings[2]) & (np.log10(df_ambe_data['cs2_bottom_new']/df_ambe_data['cs1']) > config_xe1t.l_log_settings[1]) & (np.log10(df_ambe_data['cs2_bottom_new']/df_ambe_data['cs1']) < config_xe1t.l_log_settings[2])]
-df_ambe_data = df_ambe_data[(df_ambe_data['cs2_new'] > 200.) & (df_ambe_data['cs1'] > config_xe1t.l_s1_settings[1]) & (df_ambe_data['cs1'] < config_xe1t.l_s1_settings[2]) & (np.log10(df_ambe_data['cs2_new']/df_ambe_data['cs1']) > config_xe1t.l_log_settings[1]) & (np.log10(df_ambe_data['cs2_new']/df_ambe_data['cs1']) < config_xe1t.l_log_settings[2])]
+df_ambe_data = df_ambe_data[(df_ambe_data['cs2_new'] > 200.) & (df_ambe_data['cs1'] > config_xe1t.l_s1_settings[1]) & (df_ambe_data['cs1'] < config_xe1t.l_s1_settings[2]) & (np.log10(df_ambe_data['cs2_bottom_new']/df_ambe_data['cs1']) > config_xe1t.l_log_settings[1]) & (np.log10(df_ambe_data['cs2_bottom_new']/df_ambe_data['cs1']) < config_xe1t.l_log_settings[2])]
+#df_ambe_data = df_ambe_data[(df_ambe_data['cs2_new'] > 200.) & (df_ambe_data['cs1'] > config_xe1t.l_s1_settings[1]) & (df_ambe_data['cs1'] < config_xe1t.l_s1_settings[2]) & (np.log10(df_ambe_data['cs2_new']/df_ambe_data['cs1']) > config_xe1t.l_log_settings[1]) & (np.log10(df_ambe_data['cs2_new']/df_ambe_data['cs1']) < config_xe1t.l_log_settings[2])]
 
 df_ambe_data['s1'] = np.asarray(df_ambe_data['cs1'], dtype=np.float32)
-#df_ambe_data['s2'] = np.asarray(df_ambe_data['cs2_bottom_new'], dtype=np.float32)
-df_ambe_data['s2'] = np.asarray(df_ambe_data['cs2_new'], dtype=np.float32)
+df_ambe_data['s2'] = np.asarray(df_ambe_data['cs2_bottom_new'], dtype=np.float32)
+#df_ambe_data['s2'] = np.asarray(df_ambe_data['cs2_new'], dtype=np.float32)
 
 print len(df_ambe_data['s1'])
 

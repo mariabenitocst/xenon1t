@@ -16,14 +16,15 @@ num_bins = 30
 l_s1_settings = [num_bins, 1, 100]
 l_s2_settings = [num_bins, 57, 5000]
 l_log_settings = [num_bins, 0.5, 2.5]
-l_log_settings = [num_bins, 1.4, 3.0]
+#l_log_settings = [num_bins, 1.4, 3.0]
 
 a_s1_bin_edges = np.logspace(np.log10(l_s1_settings[1]), np.log10(l_s1_settings[2]), l_s1_settings[0]+1, dtype=np.float32)
 #a_s1_bin_edges = np.linspace(l_s1_settings[1], l_s1_settings[2], l_s1_settings[0]+1, dtype=np.float32)
 a_log_bin_edges = np.linspace(l_log_settings[1], l_log_settings[2], num=l_log_settings[0]+1, dtype=np.float32)
 
 l_s1_settings_pl = [67, 3, 70]
-l_s2_settings_pl = [70, 200, 25000]#[70, 50, 8000] # log spaced
+l_s2_settings_pl = [70, 50, 8000] # log spaced
+#l_s2_settings_pl = [70, 200, 25000]#[70, 50, 8000] # log spaced
 
 l_quantiles = [20, 80]
 
@@ -77,8 +78,8 @@ bias_std = (1./12.*(1. - 0.)**2)**0.5
 extraction_efficiency_value = 0.961 #0.936
 extraction_efficiency_uncertainty = 0.046 #0.034
 
-gas_gain_value = 32.90 #11.69 #15.53
-gas_gain_uncertainty = 0.26*32.9/11.69 #0.26 #2.25
+gas_gain_value = 11.69 #32.90 #11.69 #15.53
+gas_gain_uncertainty = 0.26 #0.26*32.9/11.69 #0.26 #2.25
 
 gas_gain_width =  8.22  #3.73
 gas_gain_width_uncertainty = 0.0001
