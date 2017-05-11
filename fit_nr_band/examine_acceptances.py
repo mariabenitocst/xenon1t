@@ -22,9 +22,9 @@ import scipy.interpolate
 b_wimp_input = False
 
 if not b_wimp_input:
-    s_path_to_input = './resources/sr0_efficiency_ambe_conditions.csv'
+    #s_path_to_input = './resources/sr0_efficiency_ambe_conditions.csv'
     #s_path_to_input = './resources/sr0_efficiency_ambe_threshold_normal_noise.csv'
-    #s_path_to_input = './resources/sr0_efficiency_ambe_conditions_goodnoise.csv'
+    s_path_to_input = './resources/sr0_efficiency_ambe_conditions_goodnoise.csv'
 else:
     s_path_to_input = './resources/sr0_efficiency_weightedaverage_conditions.csv'
 

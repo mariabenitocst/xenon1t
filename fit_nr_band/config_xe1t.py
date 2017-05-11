@@ -16,13 +16,14 @@ num_bins = 30
 l_s1_settings = [num_bins, 1, 100]
 l_s2_settings = [num_bins, 57, 5000]
 l_log_settings = [num_bins, 0.5, 2.5]
+l_log_settings = [num_bins, 1.4, 3.0]
 
 a_s1_bin_edges = np.logspace(np.log10(l_s1_settings[1]), np.log10(l_s1_settings[2]), l_s1_settings[0]+1, dtype=np.float32)
 #a_s1_bin_edges = np.linspace(l_s1_settings[1], l_s1_settings[2], l_s1_settings[0]+1, dtype=np.float32)
 a_log_bin_edges = np.linspace(l_log_settings[1], l_log_settings[2], num=l_log_settings[0]+1, dtype=np.float32)
 
 l_s1_settings_pl = [67, 3, 70]
-l_s2_settings_pl = [70, 50, 8000] # log spaced
+l_s2_settings_pl = [70, 200, 25000]#[70, 50, 8000] # log spaced
 
 l_quantiles = [20, 80]
 
@@ -34,7 +35,7 @@ d_cathode_voltages_to_field = {12:120} # in kV:V/cm
 detector_r = 45 # double check
 
 # detector paramaters
-max_r = 42. #36.94 #42. # cm
+max_r = 36.94 #42. # cm
 #max_r_fv = 39.85 # 47.9 # cm
 min_z = -83.45
 max_z = -13.4
@@ -59,26 +60,28 @@ e_drift_velocity = 0.144 # cm/us
 w_value = 13.7
 w_value_uncertainty = 0.2
 
-g1_value = 0.1471#0.1511 #0.109
-g1_uncertainty = 0.0046#0.0042 #0.0035
+g1_value = 0.1442 #0.1471#0.1511 #0.109
+g1_uncertainty = 0.0068 #0.0042 #0.0035
 
 spe_res_value = 0.363
 spe_res_uncertainty = 0.0001
 
 dpe_lb = 0.17
 dpe_ub = 0.24
+dpe_median = (dpe_ub-dpe_lb)
+dpe_std = (1./12.*(dpe_ub-dpe_lb)**2)**0.5
 
-extraction_efficiency_value = 0.936
-extraction_efficiency_uncertainty = 0.034
+bias_median = (1. - 0.)/0.5
+bias_std = (1./12.*(1. - 0.)**2)**0.5
 
-gas_gain_value = 11.69 #15.53
-gas_gain_uncertainty = 0.26 #2.25
+extraction_efficiency_value = 0.961 #0.936
+extraction_efficiency_uncertainty = 0.046 #0.034
 
-gas_gain_width = 2.5#3.73
+gas_gain_value = 32.90 #11.69 #15.53
+gas_gain_uncertainty = 0.26*32.9/11.69 #0.26 #2.25
+
+gas_gain_width =  8.22  #3.73
 gas_gain_width_uncertainty = 0.0001
-
-l_means_pf_eff_pars = [3.09977598,  0.7398706]
-l_cov_matrix_pf_eff_pars = [[1.88474706e-04, 4.67178803e-06], [4.67178803e-06, 7.54638566e-05]]
 
 l_means_pax_bias = [0.]
 l_cov_matrix_pax_bias = [0.01]
@@ -101,6 +104,11 @@ cut_acceptance_s2_intercept_uncertainty = 0.0176*cut_acceptance_s2_intercept
 cut_acceptance_s2_slope = 7.20775e-06
 cut_acceptance_s2_slope_uncertainty = 0.0176*cut_acceptance_s2_slope
 
+ms_par_0 = 1.2
+ms_par_0_unc = 0.3
+
+ms_par_1 = 3.422
+ms_par_1_unc = 0.682
 
 # NEST model values and uncertainties
 

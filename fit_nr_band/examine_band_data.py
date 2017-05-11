@@ -22,7 +22,7 @@ s_path_to_pickle_save = './fit_inputs/'
 s_path_to_plots = './plots/supporting/ambe_data/'
 
 l_range_s1 = [0, 100]
-l_range_log = [1., 2.5]
+l_range_log = [1.4, 3.]
 
 # pre-170226
 """
@@ -94,10 +94,13 @@ df_ambe_data = df_ambe_data[df_ambe_data['CutS1MaxPMT']]
 #df_ambe_data = df_ambe_data[((df_ambe_data['x']**2. + df_ambe_data['y']**2.) < config_xe1t.max_r**2.) & (df_ambe_data['z'] < config_xe1t.max_z) & (config_xe1t.min_z < df_ambe_data['z'])]
 
 # other cuts
-df_ambe_data = df_ambe_data[(df_ambe_data['cs2_new'] > 200.) & (df_ambe_data['cs1'] > config_xe1t.l_s1_settings[1]) & (df_ambe_data['cs1'] < config_xe1t.l_s1_settings[2]) & (np.log10(df_ambe_data['cs2_bottom_new']/df_ambe_data['cs1']) > config_xe1t.l_log_settings[1]) & (np.log10(df_ambe_data['cs2_bottom_new']/df_ambe_data['cs1']) < config_xe1t.l_log_settings[2])]
+#df_ambe_data = df_ambe_data[(df_ambe_data['cs2_new'] > 200.) & (df_ambe_data['cs1'] > config_xe1t.l_s1_settings[1]) & (df_ambe_data['cs1'] < config_xe1t.l_s1_settings[2]) & (np.log10(df_ambe_data['cs2_bottom_new']/df_ambe_data['cs1']) > config_xe1t.l_log_settings[1]) & (np.log10(df_ambe_data['cs2_bottom_new']/df_ambe_data['cs1']) < config_xe1t.l_log_settings[2])]
+#df_ambe_data = df_ambe_data[(df_ambe_data['cs2_new'] > 200.) & (df_ambe_data['cs1'] > config_xe1t.l_s1_settings[1]) & (df_ambe_data['cs1'] < config_xe1t.l_s1_settings[2]) & (np.log10(df_ambe_data['cs2_bottom_new']/df_ambe_data['cs1']) > config_xe1t.l_log_settings[1]) & (np.log10(df_ambe_data['cs2_bottom_new']/df_ambe_data['cs1']) < config_xe1t.l_log_settings[2])]
+df_ambe_data = df_ambe_data[(df_ambe_data['cs2_new'] > 200.) & (df_ambe_data['cs1'] > config_xe1t.l_s1_settings[1]) & (df_ambe_data['cs1'] < config_xe1t.l_s1_settings[2]) & (np.log10(df_ambe_data['cs2_new']/df_ambe_data['cs1']) > config_xe1t.l_log_settings[1]) & (np.log10(df_ambe_data['cs2_new']/df_ambe_data['cs1']) < config_xe1t.l_log_settings[2])]
 
 df_ambe_data['s1'] = np.asarray(df_ambe_data['cs1'], dtype=np.float32)
-df_ambe_data['s2'] = np.asarray(df_ambe_data['cs2_bottom_new'], dtype=np.float32)
+#df_ambe_data['s2'] = np.asarray(df_ambe_data['cs2_bottom_new'], dtype=np.float32)
+df_ambe_data['s2'] = np.asarray(df_ambe_data['cs2_new'], dtype=np.float32)
 
 print len(df_ambe_data['s1'])
 
@@ -132,4 +135,4 @@ d_ambe_data['s2'] = df_ambe_data['s2']
 
 pickle.dump(d_ambe_data, open('%sambe_data.p' % (s_path_to_pickle_save), 'w'))
 
-#plt.show()
+plt.show()

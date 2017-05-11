@@ -44,7 +44,7 @@ import pycuda.driver as drv
 #  Setup and initialization
 # -----------------------------------------
 
-l_grid_parameters = ['gamma', 'alpha', 'lambda', 'extraction_efficiency']
+l_grid_parameters = ['gamma', 'alpha', 'eta', 'acceptance_par']
 num_mc_events = int(2e6)
 
 fiducial_volume_mass = 1000. # kg
@@ -54,7 +54,7 @@ lax_version = 'lax_0.11.1'
 print '\n\nCurrently using %s for fitting\n\n\n' % (lax_version)
 
 
-l_par_names = ['w_value', 'alpha', 'zeta', 'beta', 'gamma', 'delta', 'kappa', 'eta', 'lambda', 'g1', 'extraction_efficiency', 'gas_gain_mean', 'gas_gain_width', 'dpe_prob', 's1_bias_par', 's1_smearing_par', 's2_bias_par', 's2_smearing_par', 'acceptance_par'] + ['prob_bkg', 'scale_par']
+l_par_names = ['w_value', 'alpha', 'zeta', 'beta', 'gamma', 'delta', 'kappa', 'eta', 'lambda', 'g1_value', 'extraction_efficiency_value', 'gas_gain_mean_value', 'gas_gain_width_value', 'dpe_prob', 's1_bias_par', 's1_smearing_par', 's2_bias_par', 's2_smearing_par', 'acceptance_par', 'cut_acceptance_par', 'ms_par_0', 'ms_par_1'] + ['prob_bkg', 'scale_par']
 num_dim = len(l_par_names)
 
 l_sigma_levels = [-1, -0.5, 0, 0.5, 1]
@@ -71,10 +71,11 @@ d_parameter_to_index = {'kappa':6,
                         'eta':7,
                         'lambda':8,
                         'g1':9,
-                        'extraction_efficiency':10}
+                        'extraction_efficiency':10,
+                        'acceptance_par':18}
 
 # num_steps_to_include is how large of sampler you keep
-num_steps_to_include = 10
+num_steps_to_include = 100
 
 
 if(len(sys.argv) != 4):
@@ -96,7 +97,7 @@ name_of_results_directory = config_xe1t.results_directory_name
 l_plots = ['plots', dir_specifier_name, '%.3f_kV_%d_deg' % (cathode_setting, degree_setting), 'wimp_spectra']
 
 
-current_analysis = nr_analysis_xe1t.nr_analysis_xe1t('wimp', 'lax_0.11.1', num_mc_events, num_walkers, num_steps_to_include, wimp_mass=wimp_mass, device_number=int(sys.argv[3]), b_conservative_acceptance_posterior=True)
+current_analysis = nr_analysis_xe1t.nr_analysis_xe1t('wimp', 'lax_0.11.1', num_mc_events, num_walkers, num_steps_to_include, wimp_mass=wimp_mass, device_number=int(sys.argv[3]), b_conservative_acceptance_posterior=False)
 
 
 
@@ -168,11 +169,13 @@ if not os.path.exists(s_path_for_save):
 f_fit_info = open('%swimp_%sgev_mean_and_cov_matrix.txt' % (s_path_for_save, s_wimp_mass), 'w')
 f_fit_info.write('Bins in Events/Day\n')
 f_fit_info.write('Using %.2f kg Fiducial Volume Mass\n\n' % (fiducial_volume_mass))
-f_fit_info.write('Parameters: gamma, alpha, lambda, extraction_efficiency\n\n')
+f_fit_info.write('Parameters: gamma, alpha, eta, acceptance_par\n\n')
 f_fit_info.write('Means:\n')
 f_fit_info.write('%s\n\n' % (str(a_means)))
 f_fit_info.write('Covariance Matrix:\n')
 f_fit_info.write('%s\n' % str(a_cov_matrix))
+f_fit_info.write('Number of Events Simulated:\n')
+f_fit_info.write('%d\n\n' % (num_mc_events))
 f_fit_info.close()
 
 f_constant = root.TF2('constant', '0.0000001', bin_edges_s1_th2[0], bin_edges_s1_th2[-1], bin_edges_s2_th2[0], bin_edges_s2_th2[-1])
@@ -185,14 +188,14 @@ for gamma_sigma_level in tqdm.tqdm(l_sigma_levels):
     for alpha_sigma_level in l_sigma_levels:
         d_parameters_for_gpu['alpha'] = np.asarray(d_grid_parameter_percentiles['alpha'][alpha_sigma_level], dtype=np.float32)
 
-        for lambda_sigma_level in l_sigma_levels:
-            d_parameters_for_gpu['lambda'] = np.asarray(d_grid_parameter_percentiles['lambda'][lambda_sigma_level], dtype=np.float32)
+        for eta_sigma_level in l_sigma_levels:
+            d_parameters_for_gpu['eta'] = np.asarray(d_grid_parameter_percentiles['eta'][eta_sigma_level], dtype=np.float32)
 
-            for extraction_efficiency_sigma_level in l_sigma_levels:
-                d_parameters_for_gpu['extraction_efficiency'] = np.asarray(d_grid_parameter_percentiles['extraction_efficiency'][extraction_efficiency_sigma_level], dtype=np.float32)
+            for acceptance_par_sigma_level in l_sigma_levels:
+                d_parameters_for_gpu['acceptance_par'] = np.asarray(d_grid_parameter_percentiles['acceptance_par'][acceptance_par_sigma_level], dtype=np.float32)
                 
-                #s_key = 'wimp_%sgev_gamma_%+.3e_%.2fsigma_alpha_%+.3e_%.2fsigma_lambda_%+.3e_%.2fsigma_extraction_efficiency_%+.3e_%.2fsigma' % (s_wimp_mass, d_grid_parameter_percentiles['gamma'][gamma_sigma_level], gamma_sigma_level, d_grid_parameter_percentiles['alpha'][alpha_sigma_level], alpha_sigma_level, d_grid_parameter_percentiles['lambda'][lambda_sigma_level], lambda_sigma_level, d_grid_parameter_percentiles['extraction_efficiency'][extraction_efficiency_sigma_level], extraction_efficiency_sigma_level)
-                s_key = 'wimp_%sgev_gamma_%.2fsigma_alpha_%.2fsigma_lambda_%.2fsigma_extraction_efficiency_%.2fsigma' % (s_wimp_mass, gamma_sigma_level, alpha_sigma_level, lambda_sigma_level, extraction_efficiency_sigma_level)
+                #s_key = 'wimp_%sgev_gamma_%+.3e_%.2fsigma_alpha_%+.3e_%.2fsigma_eta_%+.3e_%.2fsigma_acceptance_par_%+.3e_%.2fsigma' % (s_wimp_mass, d_grid_parameter_percentiles['gamma'][gamma_sigma_level], gamma_sigma_level, d_grid_parameter_percentiles['alpha'][alpha_sigma_level], alpha_sigma_level, d_grid_parameter_percentiles['eta'][eta_sigma_level], eta_sigma_level, d_grid_parameter_percentiles['acceptance_par'][acceptance_par_sigma_level], acceptance_par_sigma_level)
+                s_key = 'wimp_%sgev_gamma_%.2fsigma_alpha_%.2fsigma_eta_%.2fsigma_acceptance_par_%.2fsigma' % (s_wimp_mass, gamma_sigma_level, alpha_sigma_level, eta_sigma_level, acceptance_par_sigma_level)
 
 
                 num_trials = np.asarray(num_mc_events, dtype=np.int32)
@@ -204,7 +207,7 @@ for gamma_sigma_level in tqdm.tqdm(l_sigma_levels):
                 a_weights = np.zeros(num_mc_events, dtype=np.float32)
 
 
-                t_args = (current_analysis.get_rng_states(), drv.In(num_trials), drv.In(mean_field), d_plotting_information['gpu_energies'], d_plotting_information['gpu_x_positions'], d_plotting_information['gpu_y_positions'], d_plotting_information['gpu_z_positions'], d_plotting_information['gpu_e_survival_prob'], drv.In(d_parameters_for_gpu['prob_bkg']), d_plotting_information['gpu_er_band_s1'], d_plotting_information['gpu_er_band_log'], drv.In(d_parameters_for_gpu['w_value']), drv.In(d_parameters_for_gpu['alpha']), drv.In(d_parameters_for_gpu['zeta']), drv.In(d_parameters_for_gpu['beta']), drv.In(d_parameters_for_gpu['gamma']), drv.In(d_parameters_for_gpu['delta']), drv.In(d_parameters_for_gpu['kappa']), drv.In(d_parameters_for_gpu['eta']), drv.In(d_parameters_for_gpu['lambda']), drv.In(d_parameters_for_gpu['g1_value']), drv.In(d_parameters_for_gpu['extraction_efficiency']), drv.In(d_parameters_for_gpu['gas_gain_value']), drv.In(d_parameters_for_gpu['gas_gain_width']), drv.In(d_parameters_for_gpu['dpe_prob']), drv.In(d_parameters_for_gpu['s1_bias_par']), drv.In(d_parameters_for_gpu['s1_smearing_par']), drv.In(d_parameters_for_gpu['s2_bias_par']), drv.In(d_parameters_for_gpu['s2_smearing_par']), drv.In(d_parameters_for_gpu['acceptance_par']), drv.In(d_parameters_for_gpu['num_pts_s1bs']), d_plotting_information['gpu_s1bs_s1s'], d_plotting_information['gpu_s1bs_lb_bias'], d_plotting_information['gpu_s1bs_ub_bias'], d_plotting_information['gpu_s1bs_lb_smearing'], d_plotting_information['gpu_s1bs_ub_smearing'], drv.In(d_parameters_for_gpu['num_pts_s2bs']), d_plotting_information['gpu_s2bs_s2s'], d_plotting_information['gpu_s2bs_lb_bias'], d_plotting_information['gpu_s2bs_ub_bias'], d_plotting_information['gpu_s2bs_lb_smearing'], d_plotting_information['gpu_s2bs_ub_smearing'], drv.In(d_parameters_for_gpu['num_pts_s1pf']), d_plotting_information['gpu_s1pf_s1s'], d_plotting_information['gpu_s1pf_lb_acc'], d_plotting_information['gpu_s1pf_mean_acc'], d_plotting_information['gpu_s1pf_ub_acc'], drv.In(d_parameters_for_gpu['current_cut_acceptance_s1_intercept']), drv.In(d_parameters_for_gpu['current_cut_acceptance_s1_slope']), drv.In(d_parameters_for_gpu['current_cut_acceptance_s2_intercept']), drv.In(d_parameters_for_gpu['current_cut_acceptance_s2_slope']), drv.In(d_parameters_for_gpu['num_bins_r2']), d_plotting_information['gpu_bin_edges_r2'], drv.In(d_parameters_for_gpu['num_bins_z']), d_plotting_information['gpu_bin_edges_z'], d_plotting_information['gpu_s1_correction_map'], drv.In(d_parameters_for_gpu['num_bins_x']), d_plotting_information['gpu_bin_edges_x'], drv.In(d_parameters_for_gpu['num_bins_y']), d_plotting_information['gpu_bin_edges_y'], d_plotting_information['gpu_s2_correction_map'], drv.InOut(a_s1), drv.InOut(a_s2), drv.InOut(a_weights))
+                t_args = (current_analysis.get_rng_states(), drv.In(num_trials), drv.In(mean_field), d_plotting_information['gpu_energies'], d_plotting_information['gpu_x_positions'], d_plotting_information['gpu_y_positions'], d_plotting_information['gpu_z_positions'], d_plotting_information['gpu_e_survival_prob'], drv.In(d_parameters_for_gpu['prob_bkg']), d_plotting_information['gpu_er_band_s1'], d_plotting_information['gpu_er_band_log'], drv.In(d_parameters_for_gpu['w_value']), drv.In(d_parameters_for_gpu['alpha']), drv.In(d_parameters_for_gpu['zeta']), drv.In(d_parameters_for_gpu['beta']), drv.In(d_parameters_for_gpu['gamma']), drv.In(d_parameters_for_gpu['delta']), drv.In(d_parameters_for_gpu['kappa']), drv.In(d_parameters_for_gpu['eta']), drv.In(d_parameters_for_gpu['lamb']), drv.In(d_parameters_for_gpu['g1_value']), drv.In(d_parameters_for_gpu['extraction_efficiency']), drv.In(d_parameters_for_gpu['gas_gain_value']), drv.In(d_parameters_for_gpu['gas_gain_width']), drv.In(d_parameters_for_gpu['dpe_prob']), drv.In(d_parameters_for_gpu['s1_bias_par']), drv.In(d_parameters_for_gpu['s1_smearing_par']), drv.In(d_parameters_for_gpu['s2_bias_par']), drv.In(d_parameters_for_gpu['s2_smearing_par']), drv.In(d_parameters_for_gpu['acceptance_par']), drv.In(d_parameters_for_gpu['num_pts_s1bs']), d_plotting_information['gpu_s1bs_s1s'], d_plotting_information['gpu_s1bs_lb_bias'], d_plotting_information['gpu_s1bs_ub_bias'], d_plotting_information['gpu_s1bs_lb_smearing'], d_plotting_information['gpu_s1bs_ub_smearing'], drv.In(d_parameters_for_gpu['num_pts_s2bs']), d_plotting_information['gpu_s2bs_s2s'], d_plotting_information['gpu_s2bs_lb_bias'], d_plotting_information['gpu_s2bs_ub_bias'], d_plotting_information['gpu_s2bs_lb_smearing'], d_plotting_information['gpu_s2bs_ub_smearing'], drv.In(d_parameters_for_gpu['num_pts_s1pf']), d_plotting_information['gpu_s1pf_s1s'], d_plotting_information['gpu_s1pf_lb_acc'], d_plotting_information['gpu_s1pf_mean_acc'], d_plotting_information['gpu_s1pf_ub_acc'], drv.In(d_parameters_for_gpu['current_cut_acceptance_s1_intercept']), drv.In(d_parameters_for_gpu['current_cut_acceptance_s1_slope']), drv.In(d_parameters_for_gpu['current_cut_acceptance_s2_intercept']), drv.In(d_parameters_for_gpu['current_cut_acceptance_s2_slope']), drv.In(d_parameters_for_gpu['num_bins_r2']), d_plotting_information['gpu_bin_edges_r2'], drv.In(d_parameters_for_gpu['num_bins_z']), d_plotting_information['gpu_bin_edges_z'], d_plotting_information['gpu_s1_correction_map'], drv.In(d_parameters_for_gpu['num_bins_x']), d_plotting_information['gpu_bin_edges_x'], drv.In(d_parameters_for_gpu['num_bins_y']), d_plotting_information['gpu_bin_edges_y'], d_plotting_information['gpu_s2_correction_map'], drv.InOut(a_s1), drv.InOut(a_s2), drv.InOut(a_weights))
 
                 current_analysis.call_gpu_func(t_args)
                 

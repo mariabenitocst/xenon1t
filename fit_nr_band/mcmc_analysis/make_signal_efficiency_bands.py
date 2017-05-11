@@ -43,7 +43,7 @@ import pycuda.driver as drv
 
 num_mc_events = int(2e6)
 num_walkers = 256
-num_steps_to_include = 1
+num_steps_to_include = 2
 
 # name notes for the saved pickle file
 name_notes = ''
@@ -51,7 +51,7 @@ name_notes = ''
 cathode_setting = config_xe1t.l_allowed_cathode_settings[0]
 degree_setting = config_xe1t.l_allowed_degree_settings[0]
 
-current_analysis = nr_analysis_xe1t.nr_analysis_xe1t('uniform_nr', 'lax_0.11.1', num_mc_events, num_walkers, num_steps_to_include, b_conservative_acceptance_posterior=True)
+current_analysis = nr_analysis_xe1t.nr_analysis_xe1t('uniform_nr', 'lax_0.11.1', num_mc_events, num_walkers, num_steps_to_include, b_conservative_acceptance_posterior=False)
 
 d_plotting_information = current_analysis.prepare_gpu()
 
@@ -245,9 +245,9 @@ ax_acceptances.legend(loc='best', fontsize=10)
 #ax_acceptances.set_xscale('log')
 #ax_acceptances.set_yscale('log')
 
-plt.show()
 
 
 pickle.dump(d_arrays, open('./mc_output/signal_efficiency_bands.p', 'w'))
 
+plt.show()
 

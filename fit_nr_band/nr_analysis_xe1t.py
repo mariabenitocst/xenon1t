@@ -20,7 +20,7 @@ class nr_analysis_xe1t(object):
     
         self.identifier = identifier
         #l_possible_identifiers = ['ambe', 'wimp', 'radiogenic_neutron', 'uniform_nr', 'band']
-        l_possible_identifiers = ['cnns', 'radiogenic_neutron', 'uniform_nr', 'ambe', 'ambe_f', 'wimp']
+        l_possible_identifiers = ['cnns', 'radiogenic_neutron', 'uniform_nr', 'ambe', 'ambe_f', 'ambe_ms', 'wimp']
     
         if self.identifier == 'wimp':
             assert wimp_mass != False
@@ -101,7 +101,7 @@ class nr_analysis_xe1t(object):
 
         # get block and grid size
         self.d_gpu_scale = {}
-        self.block_dim = 1024
+        self.block_dim = 1024/2
         self.d_gpu_scale['block'] = (self.block_dim,1,1)
         self.num_blocks = floor(num_mc_events / float(self.block_dim))
         self.d_gpu_scale['grid'] = (int(self.num_blocks), 1)
@@ -154,7 +154,7 @@ class nr_analysis_xe1t(object):
 
 
 
-        if not (self.identifier == 'ambe' or self.identifier == 'ambe_f'):
+        if not (self.identifier == 'ambe' or self.identifier == 'ambe_f' or self.identifier == 'ambe_ms'):
             self.d_mc_energy = pickle.load(open('%swimp_mc.p' % config_xe1t.path_to_fit_inputs, 'r'))
         else:
             self.d_mc_energy = pickle.load(open('%sambe_mc.p' % config_xe1t.path_to_fit_inputs, 'r'))
@@ -234,7 +234,7 @@ class nr_analysis_xe1t(object):
             self.a_mc_energy = np.asarray(self.a_mc_energy, dtype=np.float32)
             
             
-        elif self.identifier == 'ambe' or self.identifier == 'ambe_f':
+        elif self.identifier == 'ambe' or self.identifier == 'ambe_f' or self.identifier == 'ambe_ms':
             pass
             """
             bin_width = self.d_mc_energy['a_energy_bins'][1] - self.d_mc_energy['a_energy_bins'][0]
@@ -301,7 +301,7 @@ class nr_analysis_xe1t(object):
             # will fill in x,y
             pass
 
-        elif self.identifier == 'ambe' or self.identifier == 'ambe_f':
+        elif self.identifier == 'ambe' or self.identifier == 'ambe_f' or self.identifier == 'ambe_ms':
             pass
             """
             d_mc_positions = pickle.load(open('%smc_maps.p' % config_xe1t.path_to_fit_inputs, 'r'))
@@ -363,7 +363,7 @@ class nr_analysis_xe1t(object):
                 self.a_mc_z[i] = current_z/10.
 
 
-        elif self.identifier == 'ambe' or self.identifier == 'ambe_f':
+        elif self.identifier == 'ambe' or self.identifier == 'ambe_f' or self.identifier == 'ambe_ms':
 
             num_times_to_copy_array = (len(self.d_mc_energy['a_energy'])%self.num_mc_events)+1
             self.a_mc_energy = np.concatenate([self.d_mc_energy['a_energy']]*num_times_to_copy_array)[:self.num_mc_events]
@@ -471,7 +471,7 @@ class nr_analysis_xe1t(object):
         self.a_s2bs_lb_smearing = np.asarray(d_bias_smearing['s2']['lb_smearing'], dtype=np.float32)
         self.a_s2bs_ub_smearing = np.asarray(d_bias_smearing['s2']['ub_smearing'], dtype=np.float32)
 
-        if not (self.identifier == 'ambe' or self.identifier == 'ambe_f'):
+        if not (self.identifier == 'ambe' or self.identifier == 'ambe_f' or self.identifier == 'ambe_ms'):
             d_acceptances = pickle.load(open('%sacceptances_wimps.p' % (config_xe1t.path_to_fit_inputs), 'r'))
         else:
             d_acceptances = pickle.load(open('%sacceptances_ambe.p' % (config_xe1t.path_to_fit_inputs), 'r'))
@@ -592,12 +592,17 @@ class nr_analysis_xe1t(object):
 
         # get observables function
 
-        if self.identifier == 'cnns' or self.identifier == 'radiogenic_neutron' or self.identifier == 'wimp':
+        if self.identifier == 'cnns' or self.identifier == 'radiogenic_neutron' or self.identifier[:4] == 'wimp':
             gpu_function_name = 'gpu_full_observables_production_with_arrays_no_fv'
-        elif self.identifier == 'ambe' or self.identifier == 'ambe_f':
+        elif self.identifier == 'ambe':
             gpu_function_name = 'gpu_full_observables_production_with_arrays'
         elif self.identifier == 'uniform_nr':
             gpu_function_name = 'gpu_full_observables_production_with_arrays_no_fv_corrected_and_uncorrected_and_acceptances'
+        elif self.identifier == 'ambe_f':
+            gpu_function_name = 'gpu_full_observables_production_with_arrays_with_free_pax_eff'
+
+        elif self.identifier == 'ambe_ms':
+            gpu_function_name = 'gpu_full_observables_production_with_arrays_with_ms_scale'
 
 
         self.gpu_observables_func = SourceModule(cuda_full_observables_production.cuda_full_observables_production_code, no_extern_c=True).get_function(gpu_function_name)
@@ -698,7 +703,7 @@ class nr_analysis_xe1t(object):
         d_sampler_values['s2_smearing_par'] = np.asarray(a_fit_parameters[count_parameters], dtype=np.float32)
         count_parameters += 1
         
-        if not self.identifier == 'ambe_f:'
+        if not self.identifier == 'ambe_f':
             if not self.b_conservative_acceptance_posterior:
                 d_sampler_values['acceptance_par'] = np.asarray(a_fit_parameters[count_parameters], dtype=np.float32)
             else:
@@ -720,12 +725,18 @@ class nr_analysis_xe1t(object):
         d_sampler_values['current_cut_acceptance_s2_intercept'] = np.asarray(self.d_plotting_information['cut_acceptance_s2_intercept'] + a_fit_parameters[count_parameters]*self.d_plotting_information['cut_acceptance_s2_intercept_uncertainty'], dtype=np.float32)
         d_sampler_values['current_cut_acceptance_s2_slope'] = np.asarray(self.d_plotting_information['cut_acceptance_s2_slope'] + a_fit_parameters[count_parameters]*self.d_plotting_information['cut_acceptance_s2_slope_uncertainty'], dtype=np.float32)
         count_parameters += 1
+        
+        if self.identifier[-2:] == 'ms':
+            d_sampler_values['ms_par_0'] = np.asarray(a_fit_parameters[count_parameters], dtype=np.float32)
+            count_parameters += 1
+            d_sampler_values['ms_par_1'] = np.asarray(a_fit_parameters[count_parameters], dtype=np.float32)
+            count_parameters += 1
 
         if self.identifier == 'cnns' or self.identifier == 'radiogenic_neutron' or self.identifier == 'uniform_nr' or self.identifier == 'wimp':
             d_sampler_values['prob_bkg'] = np.asarray(0, dtype=np.float32)
             d_sampler_values['scale_par'] = np.asarray(1, dtype=np.float32)
             count_parameters += 2
-        elif (self.identifier == 'ambe' or self.identifier == 'ambe_f'):
+        elif (self.identifier == 'ambe' or self.identifier == 'ambe_f' or self.identifier == 'ambe_ms'):
             d_sampler_values['prob_bkg'] = np.asarray(a_fit_parameters[count_parameters], dtype=np.float32)
             count_parameters += 1
             d_sampler_values['scale_par'] = np.asarray(a_fit_parameters[count_parameters], dtype=np.float32)

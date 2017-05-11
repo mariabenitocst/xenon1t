@@ -16,7 +16,7 @@ import time, tqdm
 import cPickle as pickle
 
 
-s_path_to_corrections = './resources/FastLCEMap.pkl'
+s_path_to_corrections = './resources/fast_lce_map_s2tot.p'
 s_path_to_plots = './plots/supporting/lce_maps/'
 s_path_to_pickle_save = './fit_inputs/'
 
@@ -102,6 +102,6 @@ d_corrections['s2']['map'] = d_correction_maps['FastS2LCEXYMap']['map']
 
 pickle.dump(d_corrections, open('%ssignal_correction_maps.p' % (s_path_to_pickle_save), 'w'))
 
-#plt.show()
+plt.show()
 
 
