@@ -340,6 +340,8 @@ __global__ void gpu_full_observables_production_with_log_hist(curandState *state
     float lindhard_factor;
     float excitonToIonRatio;
     float sigma;
+    
+    float electron_lifetime;
 	
 	float probRecombination;
     float prob_quenched;
@@ -376,6 +378,9 @@ __global__ void gpu_full_observables_production_with_log_hist(curandState *state
             mc_y = a_y[iteration];
             mc_z = a_z[iteration];
             e_survival_prob = a_e_survival_prob[iteration];
+            
+            electron_lifetime = -(0.-mc_z) / (0.144*logf(e_survival_prob));
+            //printf("electron lifetime %f\\n", electron_lifetime);
             
             //printf("hist weight applied\\n");
             //hist_energy_weight = 1.242 + 2.368*expf(-mcEnergy/1.994);
@@ -4342,6 +4347,9 @@ __global__ void gpu_full_observables_production_with_log_hist_with_ms_scale(cura
     
     int repetition_number;
     
+    float electron_lifetime;
+    float true_prob_e_quenched;
+    
     float hist_energy_weight;
 	
 	int s1_bin, log_s2_s1_bin;
@@ -4372,6 +4380,14 @@ __global__ void gpu_full_observables_production_with_log_hist_with_ms_scale(cura
             mc_y = a_y[iteration];
             mc_z = a_z[iteration];
             e_survival_prob = a_e_survival_prob[iteration];
+            
+            // apply correction
+            electron_lifetime = -(0.-mc_z) / (0.144*logf(e_survival_prob));
+            electron_lifetime = 1. / (1./electron_lifetime-6.73e-5);
+            //printf("electron lifetime %f\\n", electron_lifetime);
+            
+            //true_prob_e_quenched = expf(-(0.-mc_z) / (0.144*electron_lifetime));
+            true_prob_e_quenched = e_survival_prob;
             
             //printf("hist weight applied\\n");
             hist_energy_weight = 1. + *ms_par_0*expf(-mcEnergy / *ms_par_1);
@@ -4561,7 +4577,8 @@ __global__ void gpu_full_observables_production_with_log_hist_with_ms_scale(cura
             
             //return;
             // remove electrons captured by impurities
-            mcElectrons = gpu_binomial(&s, mcElectrons, e_survival_prob);
+            //mcElectrons = gpu_binomial(&s, mcElectrons, e_survival_prob);
+            mcElectrons = gpu_binomial(&s, mcElectrons, true_prob_e_quenched);
             
             mcExtractedElectrons = gpu_binomial(&s, mcElectrons, *extractionEfficiency);
             mcS2 = (curand_normal(&s) * *gasGainWidth*powf(mcExtractedElectrons, 0.5) * s2_correction_value) + mcExtractedElectrons**gasGainValue*s2_correction_value;

@@ -26,6 +26,9 @@ l_s1_settings_pl = [67, 3, 70]
 l_s2_settings_pl = [70, 50, 8000] # log spaced
 #l_s2_settings_pl = [70, 200, 25000]#[70, 50, 8000] # log spaced
 
+l_s1_settings_pl_extended = [100, 0, 100]
+l_s2_settings_pl_extended = [120, 50, 13680]
+
 l_quantiles = [20, 80]
 
 l_allowed_degree_settings = [-4]

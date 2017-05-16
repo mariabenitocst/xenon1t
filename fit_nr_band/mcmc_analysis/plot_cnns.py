@@ -17,6 +17,15 @@ import ROOT as root
 
 import config_xe1t
 
+if(len(sys.argv) != 2):
+	print 'Usage is python plot_.py <extended mode>'
+	sys.exit(1)
+
+if sys.argv[1] == 't':
+    b_extended_mode = True
+else:
+    b_extended_mode = False
+
 dir_specifier_name = 'run_0_band'
 
 l_degree_settings_in_use = [-4]
@@ -55,10 +64,19 @@ s1_edges = np.linspace(l_s1_settings[1], l_s1_settings[2], l_s1_settings[0]+1)
 log_edges = np.linspace(l_log_settings[1], l_log_settings[2], l_log_settings[0]+1)
 s2_edges = np.linspace(l_s2_settings[1], l_s2_settings[2], l_s2_settings[0]+1)
 
-bin_edges_s1_th2 = np.linspace(config_xe1t.l_s1_settings_pl[1], config_xe1t.l_s1_settings_pl[2], config_xe1t.l_s1_settings_pl[0]+1)
+if b_extended_mode:
+    l_s1_settings_pl = config_xe1t.l_s1_settings_pl_extended
+    l_s2_settings_pl = config_xe1t.l_s2_settings_pl_extended
+else:
+    l_s1_settings_pl = config_xe1t.l_s1_settings_pl
+    l_s2_settings_pl = config_xe1t.l_s2_settings_pl
+
+bin_edges_s1_th2 = np.linspace(l_s1_settings_pl[1], l_s1_settings_pl[2], l_s1_settings_pl[0]+1)
 bin_edges_s1_th2 = np.asarray(bin_edges_s1_th2, dtype=np.float32)
-bin_edges_s2_th2 = np.linspace(np.log10(config_xe1t.l_s2_settings_pl[1]), np.log10(config_xe1t.l_s2_settings_pl[2]), config_xe1t.l_s2_settings_pl[0]+1)
+bin_edges_s2_th2 = np.linspace(np.log10(l_s2_settings_pl[1]), np.log10(l_s2_settings_pl[2]), l_s2_settings_pl[0]+1)
 bin_edges_s2_th2 = np.asarray(bin_edges_s2_th2, dtype=np.float32)
+
+
 
 roi_lb_cut_s1 = 3
 for i, bin_edge in enumerate(s1_edges):
@@ -103,10 +121,14 @@ fig_cnns.savefig('%scnns_%s.png' % (s_path_for_save, lax_version))
 
 # make ROOT histogram for pl
 f_constant = root.TF2('constant', '0.0000000001', bin_edges_s1_th2[0], bin_edges_s1_th2[-1], bin_edges_s2_th2[0], bin_edges_s2_th2[-1])
-f_hist = root.TFile('./mc_output/cnns_bkg_%s.root' % (lax_version), 'RECREATE')
+
+if b_extended_mode:
+    f_hist = root.TFile('./mc_output/cnns_bkg_%s_extended.root' % (lax_version), 'RECREATE')
+else:
+    f_hist = root.TFile('./mc_output/cnns_bkg_%s.root' % (lax_version), 'RECREATE')
 
 s_key = 'cnns_bkg'
-h_current = root.TH2F(s_key, s_key, config_xe1t.l_s1_settings_pl[0], bin_edges_s1_th2, config_xe1t.l_s2_settings_pl[0], bin_edges_s2_th2)
+h_current = root.TH2F(s_key, s_key, l_s1_settings_pl[0], bin_edges_s1_th2, l_s2_settings_pl[0], bin_edges_s2_th2)
 h_current.Add(f_constant)
 
 for i in tqdm.tqdm(xrange(len(d_arrays['d_mc']['s1'].values))):
