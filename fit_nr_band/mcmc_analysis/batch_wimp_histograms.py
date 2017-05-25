@@ -20,7 +20,7 @@ l_wimp_masses = [(5, 0), (6, 1), (7, 2), (8, 3), (9, 4), (10, 5)]
 for mass, device_number in l_wimp_masses:
     print 'Running for %d GeV WIMP on GPU %d' % (mass, device_number)
 
-    l_args = ['python', 'make_pl_wimp_arrays.py', '256', str(mass), str(device_number)]
+    l_args = ['python', 'make_pl_wimp_arrays.py', '256', str(mass), str(device_number), 'f']
     Popen(l_args)
 
 

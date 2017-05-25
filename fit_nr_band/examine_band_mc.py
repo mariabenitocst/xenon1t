@@ -92,7 +92,14 @@ nb_energy = 3000
 lb_energy = 0
 ub_energy = 100
 
-a_energy_hist, a_energy_bins, _ = ax_mc.hist(d_ambe_mc['energy'], bins=nb_energy, range=[lb_energy, ub_energy])
+
+# get linear histogram
+a_energy_hist, a_energy_bins= np.histogram(d_ambe_mc['energy'], bins=nb_energy, range=[lb_energy, ub_energy])
+
+
+# make plot for Patrick...
+energy_bin_edges = np.logspace(-1, np.log10(ub_energy), 200)
+ax_mc.hist(d_ambe_mc['energy'], bins=energy_bin_edges)
 
 d_ambe_mc['a_energy_hist'] = a_energy_hist
 d_ambe_mc['a_energy_bins'] = a_energy_bins

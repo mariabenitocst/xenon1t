@@ -46,9 +46,9 @@ transparency = 0.2
 l_quantiles_for_lines_in_plot = [1, 5, 50]
 
 # num_steps_to_include is how large of sampler you keep
-num_steps_to_include = 10
+num_steps_to_include = 1
 num_mc_events = int(4e5)
-device_number = 0
+device_number = 4
 b_save_array = False
 
 s_identifier = 'sb_ms'
@@ -58,6 +58,46 @@ elif s_identifier == 'sbf':
     s_source = 'ambe_f'
 elif s_identifier == 'sb_ms':
     s_source = 'ambe_ms'
+
+    d_comparisons = config_xe1t.nest_lindhard_model
+    
+    d_comparisons['values']['w_value'] = config_xe1t.w_value
+    d_comparisons['uncertainty']['w_value'] = [-config_xe1t.w_value_uncertainty, config_xe1t.w_value_uncertainty]
+    
+    d_comparisons['values']['g1_value'] = config_xe1t.g1_value
+    d_comparisons['uncertainty']['g1_value'] = [-config_xe1t.g1_uncertainty, config_xe1t.g1_uncertainty]
+
+    d_comparisons['values']['extraction_efficiency_value'] = config_xe1t.extraction_efficiency_value
+    d_comparisons['uncertainty']['extraction_efficiency_value'] = [-config_xe1t.extraction_efficiency_uncertainty, config_xe1t.extraction_efficiency_uncertainty]
+    
+    d_comparisons['values']['gas_gain_mean_value'] = config_xe1t.gas_gain_value
+    d_comparisons['uncertainty']['gas_gain_mean_value'] = [-config_xe1t.gas_gain_uncertainty, config_xe1t.gas_gain_uncertainty]
+
+    d_comparisons['values']['gas_gain_width_value'] = config_xe1t.gas_gain_width
+
+    d_comparisons['values']['dpe_prob'] = config_xe1t.dpe_median
+    
+    d_comparisons['values']['s1_bias_par'] = config_xe1t.bias_median
+
+    d_comparisons['values']['s1_smearing_par'] = config_xe1t.bias_median
+    
+    d_comparisons['values']['s2_bias_par'] = config_xe1t.bias_median
+    
+    d_comparisons['values']['s2_smearing_par'] = config_xe1t.bias_median
+    
+    d_comparisons['values']['acceptance_par'] = 0.5
+
+    d_comparisons['values']['cut_acceptance_par'] = 0
+    
+    d_comparisons['values']['ms_par_0'] = config_xe1t.ms_par_0
+    
+    d_comparisons['values']['ms_par_1'] = config_xe1t.ms_par_1
+
+    d_comparisons['values']['prob_bkg'] = 0.05
+
+    d_comparisons['values']['scale_par'] = 1.
+
+
 
 print '\n\nMaking plots assuming identifier %s\n\n' % (s_identifier)
 
@@ -71,7 +111,7 @@ l_s1_settings = config_xe1t.l_s1_settings
 l_log_settings = config_xe1t.l_log_settings
 l_s2_settings = config_xe1t.l_s2_settings
 
-mc_bin_number_multiplier = 2
+mc_bin_number_multiplier = 5
 fig_size_2d = (11, 13)
 figure_sizes = (11, 2.0*(len(l_s1_cuts)-1))
 d_subplot_space_2d = {'wspace':0.2, 'hspace':0.3}
@@ -101,7 +141,7 @@ fig_s1_log.subplots_adjust(**d_subplot_space_2d)
 
 
 # create 2d histogram of data
-hist_s1_log_data = ax_s1_log_data.hist2d(d_data_information['a_s1_data'], np.log10(d_data_information['a_s2_data']/d_data_information['a_s1_data']), bins=[l_s1_settings[0], l_log_settings[0]], range=[[l_s1_settings[1], l_s1_settings[2]], [l_log_settings[1], l_log_settings[2]]], cmap='Blues')
+hist_s1_log_data = ax_s1_log_data.hist2d(d_data_information['a_s1_data'], np.log10(d_data_information['a_s2_data']/d_data_information['a_s1_data']), bins=[l_s1_settings[0], l_log_settings[0]], range=[[l_s1_settings[1], l_s1_settings[2]], [l_log_settings[1], l_log_settings[2]]], cmap='Reds')
 fig_s1_log.colorbar(hist_s1_log_data[3], ax=ax_s1_log_data)
 
 
@@ -135,12 +175,25 @@ if s_identifier == 'sb':
 elif s_identifier == 'sbf':
     t_args = (current_analysis.get_rng_states(), drv.In(num_trials), drv.In(mean_field), d_plotting_information['gpu_energies'], d_plotting_information['gpu_x_positions'], d_plotting_information['gpu_y_positions'], d_plotting_information['gpu_z_positions'], d_plotting_information['gpu_e_survival_prob'], drv.In(d_sampler_values['prob_bkg']), d_plotting_information['gpu_er_band_s1'], d_plotting_information['gpu_er_band_log'], drv.In(d_sampler_values['w_value']), drv.In(d_sampler_values['alpha']), drv.In(d_sampler_values['zeta']), drv.In(d_sampler_values['beta']), drv.In(d_sampler_values['gamma']), drv.In(d_sampler_values['delta']), drv.In(d_sampler_values['kappa']), drv.In(d_sampler_values['eta']), drv.In(d_sampler_values['lamb']), drv.In(d_sampler_values['g1_value']), drv.In(d_sampler_values['extraction_efficiency']), drv.In(d_sampler_values['gas_gain_value']), drv.In(d_sampler_values['gas_gain_width']), drv.In(d_sampler_values['dpe_prob']), drv.In(d_sampler_values['s1_bias_par']), drv.In(d_sampler_values['s1_smearing_par']), drv.In(d_sampler_values['s2_bias_par']), drv.In(d_sampler_values['s2_smearing_par']), drv.In(d_sampler_values['acceptance_par_0']), drv.In(d_sampler_values['acceptance_par_1']), drv.In(d_sampler_values['num_pts_s1bs']), d_plotting_information['gpu_s1bs_s1s'], d_plotting_information['gpu_s1bs_lb_bias'], d_plotting_information['gpu_s1bs_ub_bias'], d_plotting_information['gpu_s1bs_lb_smearing'], d_plotting_information['gpu_s1bs_ub_smearing'], drv.In(d_sampler_values['num_pts_s2bs']), d_plotting_information['gpu_s2bs_s2s'], d_plotting_information['gpu_s2bs_lb_bias'], d_plotting_information['gpu_s2bs_ub_bias'], d_plotting_information['gpu_s2bs_lb_smearing'], d_plotting_information['gpu_s2bs_ub_smearing'], drv.In(d_sampler_values['current_cut_acceptance_s1_intercept']), drv.In(d_sampler_values['current_cut_acceptance_s1_slope']), drv.In(d_sampler_values['current_cut_acceptance_s2_intercept']), drv.In(d_sampler_values['current_cut_acceptance_s2_slope']), drv.In(d_sampler_values['num_bins_r2']), d_plotting_information['gpu_bin_edges_r2'], drv.In(d_sampler_values['num_bins_z']), d_plotting_information['gpu_bin_edges_z'], d_plotting_information['gpu_s1_correction_map'], drv.In(d_sampler_values['num_bins_x']), d_plotting_information['gpu_bin_edges_x'], drv.In(d_sampler_values['num_bins_y']), d_plotting_information['gpu_bin_edges_y'], d_plotting_information['gpu_s2_correction_map'], drv.InOut(a_s1_mc), drv.InOut(a_s2_mc), drv.InOut(a_weights))
 elif s_identifier == 'sb_ms':
+
+    # call for prior
+    a_s1_mc_prior = np.full(num_mc_events, -1, dtype=np.float32)
+    a_s2_mc_prior = np.full(num_mc_events, -2, dtype=np.float32)
+    a_weights_prior = np.full(num_mc_events, 0, dtype=np.float32)
+    
+    for label in d_comparisons['values']:
+        d_comparisons['values'][label] = np.asarray(d_comparisons['values'][label], dtype=np.float32)
+
+    t_args_prior = (current_analysis.get_rng_states(), drv.In(num_trials), drv.In(mean_field), d_plotting_information['gpu_energies'], d_plotting_information['gpu_x_positions'], d_plotting_information['gpu_y_positions'], d_plotting_information['gpu_z_positions'], d_plotting_information['gpu_e_survival_prob'], drv.In(d_sampler_values['prob_bkg']), d_plotting_information['gpu_er_band_s1'], d_plotting_information['gpu_er_band_log'], drv.In(d_comparisons['values']['w_value']), drv.In(d_comparisons['values']['alpha']), drv.In(d_comparisons['values']['zeta']), drv.In(d_comparisons['values']['beta']), drv.In(d_comparisons['values']['gamma']), drv.In(d_comparisons['values']['delta']), drv.In(d_comparisons['values']['kappa']), drv.In(d_comparisons['values']['eta']), drv.In(d_comparisons['values']['lambda']), drv.In(d_comparisons['values']['g1_value']), drv.In(d_comparisons['values']['extraction_efficiency_value']), drv.In(d_comparisons['values']['gas_gain_mean_value']), drv.In(d_comparisons['values']['gas_gain_width_value']), drv.In(d_comparisons['values']['dpe_prob']), drv.In(d_comparisons['values']['s1_bias_par']), drv.In(d_comparisons['values']['s1_smearing_par']), drv.In(d_comparisons['values']['s2_bias_par']), drv.In(d_comparisons['values']['s2_smearing_par']), drv.In(d_comparisons['values']['acceptance_par']), drv.In(d_sampler_values['num_pts_s1bs']), d_plotting_information['gpu_s1bs_s1s'], d_plotting_information['gpu_s1bs_lb_bias'], d_plotting_information['gpu_s1bs_ub_bias'], d_plotting_information['gpu_s1bs_lb_smearing'], d_plotting_information['gpu_s1bs_ub_smearing'], drv.In(d_sampler_values['num_pts_s2bs']), d_plotting_information['gpu_s2bs_s2s'], d_plotting_information['gpu_s2bs_lb_bias'], d_plotting_information['gpu_s2bs_ub_bias'], d_plotting_information['gpu_s2bs_lb_smearing'], d_plotting_information['gpu_s2bs_ub_smearing'], drv.In(d_sampler_values['num_pts_s1pf']), d_plotting_information['gpu_s1pf_s1s'], d_plotting_information['gpu_s1pf_lb_acc'], d_plotting_information['gpu_s1pf_mean_acc'], d_plotting_information['gpu_s1pf_ub_acc'], drv.In(np.asarray(config_xe1t.cut_acceptance_s1_intercept, dtype=np.float32)), drv.In(np.asarray(config_xe1t.cut_acceptance_s1_slope, dtype=np.float32)), drv.In(np.asarray(config_xe1t.cut_acceptance_s2_intercept, dtype=np.float32)), drv.In(np.asarray(config_xe1t.cut_acceptance_s2_slope, dtype=np.float32)), drv.In(d_comparisons['values']['ms_par_0']), drv.In(d_comparisons['values']['ms_par_1']), drv.In(d_sampler_values['num_bins_r2']), d_plotting_information['gpu_bin_edges_r2'], drv.In(d_sampler_values['num_bins_z']), d_plotting_information['gpu_bin_edges_z'], d_plotting_information['gpu_s1_correction_map'], drv.In(d_sampler_values['num_bins_x']), d_plotting_information['gpu_bin_edges_x'], drv.In(d_sampler_values['num_bins_y']), d_plotting_information['gpu_bin_edges_y'], d_plotting_information['gpu_s2_correction_map'], drv.InOut(a_s1_mc_prior), drv.InOut(a_s2_mc_prior), drv.InOut(a_weights_prior))
+    
+    current_analysis.call_gpu_func(t_args_prior)
+
     t_args = (current_analysis.get_rng_states(), drv.In(num_trials), drv.In(mean_field), d_plotting_information['gpu_energies'], d_plotting_information['gpu_x_positions'], d_plotting_information['gpu_y_positions'], d_plotting_information['gpu_z_positions'], d_plotting_information['gpu_e_survival_prob'], drv.In(d_sampler_values['prob_bkg']), d_plotting_information['gpu_er_band_s1'], d_plotting_information['gpu_er_band_log'], drv.In(d_sampler_values['w_value']), drv.In(d_sampler_values['alpha']), drv.In(d_sampler_values['zeta']), drv.In(d_sampler_values['beta']), drv.In(d_sampler_values['gamma']), drv.In(d_sampler_values['delta']), drv.In(d_sampler_values['kappa']), drv.In(d_sampler_values['eta']), drv.In(d_sampler_values['lamb']), drv.In(d_sampler_values['g1_value']), drv.In(d_sampler_values['extraction_efficiency']), drv.In(d_sampler_values['gas_gain_value']), drv.In(d_sampler_values['gas_gain_width']), drv.In(d_sampler_values['dpe_prob']), drv.In(d_sampler_values['s1_bias_par']), drv.In(d_sampler_values['s1_smearing_par']), drv.In(d_sampler_values['s2_bias_par']), drv.In(d_sampler_values['s2_smearing_par']), drv.In(d_sampler_values['acceptance_par']), drv.In(d_sampler_values['num_pts_s1bs']), d_plotting_information['gpu_s1bs_s1s'], d_plotting_information['gpu_s1bs_lb_bias'], d_plotting_information['gpu_s1bs_ub_bias'], d_plotting_information['gpu_s1bs_lb_smearing'], d_plotting_information['gpu_s1bs_ub_smearing'], drv.In(d_sampler_values['num_pts_s2bs']), d_plotting_information['gpu_s2bs_s2s'], d_plotting_information['gpu_s2bs_lb_bias'], d_plotting_information['gpu_s2bs_ub_bias'], d_plotting_information['gpu_s2bs_lb_smearing'], d_plotting_information['gpu_s2bs_ub_smearing'], drv.In(d_sampler_values['num_pts_s1pf']), d_plotting_information['gpu_s1pf_s1s'], d_plotting_information['gpu_s1pf_lb_acc'], d_plotting_information['gpu_s1pf_mean_acc'], d_plotting_information['gpu_s1pf_ub_acc'], drv.In(d_sampler_values['current_cut_acceptance_s1_intercept']), drv.In(d_sampler_values['current_cut_acceptance_s1_slope']), drv.In(d_sampler_values['current_cut_acceptance_s2_intercept']), drv.In(d_sampler_values['current_cut_acceptance_s2_slope']), drv.In(d_sampler_values['ms_par_0']), drv.In(d_sampler_values['ms_par_1']), drv.In(d_sampler_values['num_bins_r2']), d_plotting_information['gpu_bin_edges_r2'], drv.In(d_sampler_values['num_bins_z']), d_plotting_information['gpu_bin_edges_z'], d_plotting_information['gpu_s1_correction_map'], drv.In(d_sampler_values['num_bins_x']), d_plotting_information['gpu_bin_edges_x'], drv.In(d_sampler_values['num_bins_y']), d_plotting_information['gpu_bin_edges_y'], d_plotting_information['gpu_s2_correction_map'], drv.InOut(a_s1_mc), drv.InOut(a_s2_mc), drv.InOut(a_weights))
 
 current_analysis.call_gpu_func(t_args)
 
 
-hist_s1_log_mc = ax_s1_log_mc.hist2d(a_s1_mc, np.log10(a_s2_mc/a_s1_mc), bins=[l_s1_settings[0], l_log_settings[0]], range=[[l_s1_settings[1], l_s1_settings[2]], [l_log_settings[1], l_log_settings[2]]], cmap='Blues', weights=a_weights)
+hist_s1_log_mc = ax_s1_log_mc.hist2d(a_s1_mc, np.log10(a_s2_mc/a_s1_mc), bins=[l_s1_settings[0], l_log_settings[0]], range=[[l_s1_settings[1], l_s1_settings[2]], [l_log_settings[1], l_log_settings[2]]], cmap='Reds', weights=a_weights)
 fig_s1_log.colorbar(hist_s1_log_mc[3], ax=ax_s1_log_mc)
 
 
@@ -149,6 +202,10 @@ df_data['log'] = np.log10(df_data['s2']/df_data['s1'])
 
 df_mc = pd.DataFrame({'s1':a_s1_mc, 's2':a_s2_mc})
 df_mc['log'] = np.log10(df_mc['s2']/df_mc['s1'])
+
+if s_identifier == 'sb_ms':
+    df_mc_prior = pd.DataFrame({'s1':a_s1_mc_prior, 's2':a_s2_mc_prior, 'weight':a_weights_prior})
+    df_mc_prior['log'] = np.log10(df_mc_prior['s2']/df_mc_prior['s1'])
 
 if b_save_array:
     d_mc = {}
@@ -337,6 +394,9 @@ a_median_line_s1 = [0 for i in xrange(l_s1_settings[0])]
 a_median_line_data_log = [0 for i in xrange(l_s1_settings[0])]
 a_median_line_mc_log = [0 for i in xrange(l_s1_settings[0])]
 
+if s_identifier == 'sb_ms':
+    a_median_line_mc_prior_log = [0 for i in xrange(l_s1_settings[0])]
+
 l_missed_pts = []
 
 for i in xrange(l_s1_settings[0]):
@@ -344,6 +404,9 @@ for i in xrange(l_s1_settings[0]):
 
     current_df_data = df_data[(df_data['s1'] > s1_edges[i]) & (df_data['s1'] < s1_edges[i+1])]
     current_df_mc = df_mc[(df_mc['s1'] > s1_edges[i]) & (df_mc['s1'] < s1_edges[i+1])]
+    
+    if s_identifier == 'sb_ms':
+        current_df_mc_prior = df_mc_prior[(df_mc_prior['s1'] > s1_edges[i]) & (df_mc_prior['s1'] < s1_edges[i+1])]
 
     if len(current_df_data['log']) == 0:
         #a_median_line_data_log[i] = a_median_line_data_log[i-1]
@@ -356,8 +419,12 @@ for i in xrange(l_s1_settings[0]):
 
     if len(current_df_mc['log']) == 0:
         a_median_line_mc_log[i] = a_median_line_mc_log[i-1]
+        if s_identifier == 'sb_ms':
+            a_median_line_mc_prior_log[i] = a_median_line_mc_prior_log[i-1]
     else:
         a_median_line_mc_log[i] = np.median(current_df_mc['log'])
+        if s_identifier == 'sb_ms':
+            a_median_line_mc_prior_log[i] = np.median(current_df_mc_prior['log'])
 
 
 l_missed_pts.reverse()
@@ -365,15 +432,23 @@ for pt in l_missed_pts:
     a_median_line_s1.pop(pt)
     a_median_line_data_log.pop(pt)
     a_median_line_mc_log.pop(pt)
+    if s_identifier == 'sb_ms':
+        a_median_line_mc_prior_log.pop(pt)
+
 
 
 # draw on data hist and get handles
 line_handle_data, = ax_s1_log_data.plot(a_median_line_s1, a_median_line_data_log, color='r', label='Data Median')
 line_handle_mc, = ax_s1_log_data.plot(a_median_line_s1, a_median_line_mc_log, color='magenta', label='MC Median')
+if s_identifier == 'sb_ms':
+    line_handle_mc_prior, = ax_s1_log_data.plot(a_median_line_s1, a_median_line_mc_prior_log, color='green', label='MC Median Prior')
+
 
 # draw on mc hist
 ax_s1_log_mc.plot(a_median_line_s1, a_median_line_data_log, color='r', label='Data Median')
 ax_s1_log_mc.plot(a_median_line_s1, a_median_line_mc_log, color='magenta', label='MC Median')
+if s_identifier == 'sb_ms':
+    ax_s1_log_mc.plot(a_median_line_s1, a_median_line_mc_prior_log, color='green', label='MC Median Prior')
 
 
 # add labels to plots
@@ -388,7 +463,11 @@ ax_s1_log_mc.set_xlabel('S1 [PE]')
 ax_s1_log_mc.set_ylabel(r'$log_{10}(\frac{S2}{S1})$')
 
 
-ax_s1_log_data.legend(handles=[line_handle_data, line_handle_mc], loc='best')
+ax_s1_log_data.legend(handles=[line_handle_data, line_handle_mc, line_handle_mc_prior], loc='best')
+
+
+
+
 
 
 
@@ -400,8 +479,14 @@ a_s1_x_values, a_s1_y_values, a_s1_x_err_low, a_s1_x_err_high, a_s1_y_err_low, a
 
 ax_s1_projection.errorbar(a_s1_x_values, a_s1_y_values, xerr=[a_s1_x_err_low, a_s1_x_err_high], yerr=[a_s1_y_err_low, a_s1_y_err_high], linestyle='', color='black')
 
-ax_s1_projection.plot(s1_bin_centers_mc, d_quantiles['s1'][l_quantiles[1]], color='b', linestyle='--')
-ax_s1_projection.fill_between(s1_bin_centers_mc, d_quantiles['s1'][l_quantiles[0]], d_quantiles['s1'][l_quantiles[2]], color='b', alpha=transparency)
+ax_s1_projection.plot(s1_bin_centers_mc, d_quantiles['s1'][l_quantiles[1]], color='r', linestyle='--')
+ax_s1_projection.fill_between(s1_bin_centers_mc, d_quantiles['s1'][l_quantiles[0]], d_quantiles['s1'][l_quantiles[2]], color='r', alpha=transparency)
+
+# make line for s1
+if s_identifier == 'sb_ms':
+    a_hist_s1_prior_projection, _ = np.histogram(df_mc_prior['s1'], bins=s1_edges_mc, weights=df_mc_prior['weight'])
+    a_hist_s1_prior_projection *= scaling_factor_for_histogram
+    ax_s1_projection.plot(s1_bin_centers_mc, a_hist_s1_prior_projection, color='g', linestyle='--')
 
 ax_s1_projection.set_xlim(s1_edges_mc[0], s1_edges_mc[-1])
 ax_s1_projection.set_xlabel('S1 [PE]')

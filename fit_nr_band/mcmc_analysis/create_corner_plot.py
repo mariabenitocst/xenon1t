@@ -98,8 +98,8 @@ elif s_identifier == 'sb_ms':
     d_comparisons['values']['gas_gain_mean_value'] = config_xe1t.gas_gain_value
     d_comparisons['uncertainty']['gas_gain_mean_value'] = [-config_xe1t.gas_gain_uncertainty, config_xe1t.gas_gain_uncertainty]
 
-    d_comparisons['values']['gas_gain_width_value'] = config_xe1t.gas_gain_width
-    d_comparisons['uncertainty']['gas_gain_width_value'] = [-config_xe1t.gas_gain_width_uncertainty, config_xe1t.gas_gain_width_uncertainty]
+    #d_comparisons['values']['gas_gain_width_value'] = config_xe1t.gas_gain_width
+    #d_comparisons['uncertainty']['gas_gain_width_value'] = [-config_xe1t.gas_gain_width_uncertainty, config_xe1t.gas_gain_width_uncertainty]
 
     d_comparisons['values']['dpe_prob'] = config_xe1t.dpe_median
     d_comparisons['uncertainty']['dpe_prob'] = [-config_xe1t.dpe_std, config_xe1t.dpe_std]
@@ -116,7 +116,7 @@ elif s_identifier == 'sb_ms':
     d_comparisons['values']['s2_smearing_par'] = config_xe1t.bias_median
     d_comparisons['uncertainty']['s2_smearing_par'] = [-config_xe1t.bias_std, config_xe1t.bias_std]
     
-    d_comparisons['values']['acceptance_par'] = 0
+    d_comparisons['values']['acceptance_par'] = 0.5
     d_comparisons['uncertainty']['acceptance_par'] = [-1, 1]
 
     d_comparisons['values']['cut_acceptance_par'] = 0
@@ -231,9 +231,11 @@ for i, par_name in enumerate(l_par_names):
     print '^  %s  |  $%.2e^{+%.2e}_{-%.2e}$  |' % (par_name, med_par, ub_par-med_par, med_par-lb_par)
     
     if par_name in d_comparisons['values']:
-        l_posterior_median.append(med_par - d_comparisons['values'][par_name])
-        l_posterior_lb.append(med_par-lb_par)
-        l_posterior_ub.append(ub_par-med_par)
+        #print par_name, med_par - d_comparisons['values'][par_name]
+        std_prior = np.average(np.absolute(d_comparisons['uncertainty'][par_name]))
+        l_posterior_median.append((med_par - d_comparisons['values'][par_name])/std_prior)
+        l_posterior_lb.append((med_par-lb_par)/std_prior)
+        l_posterior_ub.append((ub_par-med_par)/std_prior)
         
         l_prior_median.append(d_comparisons['values'][par_name]
          - d_comparisons['values'][par_name])
@@ -242,22 +244,27 @@ for i, par_name in enumerate(l_par_names):
         
         l_names.append(par_name)
 
-"""
-l_x_values = [i for i in xrange(len(l_names))]
+l_x_values = [i for i in xrange(len(l_posterior_median))]
 
-f_comparisons, ax_comparisons = plt.subplots(1)
+f_comparisons, ax_comparisons = plt.subplots(1, figsize=[18, 12])
 
-ax_comparisons.set_xticks(l_x_values, l_names)
+ax_comparisons.set_xticks(l_x_values)
+ax_comparisons.set_xticklabels(l_names, rotation=40, ha='right')
 
-ax_comparisons.errorbar(l_x_values, l_posterior_median, yerr=[l_posterior_lb, l_posterior_ub], color='b', label='Posterior')
-ax_comparisons.errorbar(l_x_values, l_prior_median, yerr=[l_prior_lb, l_prior_ub], color='r', label='Prior')
+#print l_posterior_median
+ax_comparisons.errorbar(l_x_values, l_posterior_median, yerr=[l_posterior_lb, l_posterior_ub], color='b', label='Posterior', linestyle='', marker='o')
+ax_comparisons.plot([l_x_values[0]-0.5, l_x_values[-1]+0.5], [0., 0.], 'r-')
+ax_comparisons.plot([l_x_values[0]-0.5, l_x_values[-1]+0.5], [1., 1.], 'r--')
+ax_comparisons.plot([l_x_values[0]-0.5, l_x_values[-1]+0.5], [-1., -1.], 'r--')
+#ax_comparisons.errorbar(l_x_values, l_prior_median, yerr=[l_prior_lb, l_prior_ub], color='r', label='Prior')
 
+ax_comparisons.set_xlim(l_x_values[0]-0.5, l_x_values[-1]+0.5)
 ax_comparisons.set_xlabel('Parameter')
-ax_comparisons.set_ylabel('Value minus prior median')
-ax_comparisons.legend(loc='best')
+ax_comparisons.set_ylabel('Posterior Minus Prior Normalized to Width of Prior')
+#ax_comparisons.legend(loc='best')
 
-plt.show()
-"""
+plt.tight_layout()
+#plt.show()
 
 a_variation_samples = samples[:, [1,4,7,18]]
 l_variation_labels = [l_par_names[1], l_par_names[4], l_par_names[7], l_par_names[18]]
@@ -274,6 +281,7 @@ if not os.path.exists(s_path_for_save):
 
 fig.savefig('%s%s_corner_plot_%s.png' % (s_path_for_save, s_identifier, dir_specifier_name))
 f_gr.savefig('%s%s_gr_statistic_%s.png' % (s_path_for_save, s_identifier, dir_specifier_name))
+f_comparisons.savefig('%s%s_comparisons_%s.png' % (s_path_for_save, s_identifier, dir_specifier_name))
 fig_variation.savefig('%s%s_variation_corner_plot_%s.png' % (s_path_for_save, s_identifier, dir_specifier_name))
 
 

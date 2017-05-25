@@ -56,9 +56,9 @@ else:
 
 if b_cascade:
     if not filename[:5] == 'nerix':
-        l_free_pars = ['p_hit_first_dynode', 'collection_efficiency', 'mean_electrons_per_dynode', 'width_electrons_per_dynode', 'p_e_freed', 'underamp_ionization_correction', 'poor_collection_ionization_correction', 'bkg_mean', 'bkg_std', 'mean_num_pe_mpe', 'scale_par']
+        l_free_pars = ['prob_pe_from_first_dynode', 'collection_efficiency', 'mean_electrons_per_dynode', 'width_electrons_per_dynode', 'p_e_freed', 'underamp_ionization_correction', 'poor_collection_ionization_correction', 'bkg_mean', 'bkg_std', 'mean_num_incident_photons', 'prob_pe_from_photocathode', 'scale_par']
     else:
-        l_free_pars = ['p_hit_first_dynode', 'collection_efficiency', 'mean_electrons_per_dynode', 'width_electrons_per_dynode', 'p_e_freed', 'underamp_ionization_correction', 'poor_collection_ionization_correction', 'bkg_mean', 'bkg_std', 'mean_num_pe_mpe', 'scale_par']
+        l_free_pars = ['prob_pe_from_first_dynode', 'collection_efficiency', 'mean_electrons_per_dynode', 'width_electrons_per_dynode', 'p_e_freed', 'underamp_ionization_correction', 'poor_collection_ionization_correction', 'bkg_mean', 'bkg_std', 'mean_num_incident_photons', 'prob_pe_from_photocathode', 'scale_par']
 
 else:
     if not filename[:5] == 'nerix':
@@ -71,19 +71,20 @@ num_dim = len(l_free_pars)
 l_colors = plt.get_cmap('jet')(np.linspace(0, 1.0, num_dim))
 
 if b_cascade:
-    num_steps = 1000
+    num_steps = 100
 else:
     num_steps = 2000
 
+#print a_full_sampler.shape
 samples = a_full_sampler[:, -num_steps:, :].reshape((-1, num_dim))
 
-print samples.shape
+#print samples.shape
 start_time = time.time()
 print 'Starting corner plot...\n'
 if not filename == 'fake':
     fig = corner.corner(samples, labels=l_free_pars, quantiles=[0.16, 0.5, 0.84], show_titles=True, title_fmt='.3e', title_kwargs={"fontsize": 12})
 else:
-    a_true_values = [8.70231323e-01, 9.25274145e-01, 1.59644474e+01, 1.12789207e+00, 1.94743614e-01, 9.66331064e-01, 8.97645850e-01, -1.06349404e+04, 2.55661408e+05, 1.29756228e+00, 9.87788161e-01]
+    a_true_values = [9.95865571e-03*2, 9.27764164e-01, 1.63507208e+01, 2.22283848e+00, 1.90175341e-01, 9.43649321e-01, 8.93044254e-01, -9.44900313e+03, 2.55406771e+05, 4.95481176e+00, 2.37034972e-01, 1.00496831e+00]
     fig = corner.corner(samples, labels=l_free_pars, quantiles=[0.16, 0.5, 0.84], truths=a_true_values, show_titles=True, title_fmt='.3e', title_kwargs={"fontsize": 12})
 print 'Corner plot took %.3f minutes.\n\n' % ((time.time()-start_time)/60.)
 

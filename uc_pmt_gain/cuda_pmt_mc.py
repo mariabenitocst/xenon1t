@@ -6,6 +6,8 @@ cuda_pmt_mc ="""
 extern "C" {
 
 
+#include <stdio.h>
+
 __device__ int gpu_exponential(curandState_t *rand_state, float exp_constant, float exp_offset)
 {
     // pdf = 1/const * exp(-(x-offset)/const)
@@ -54,6 +56,73 @@ __device__ int gpu_discrete_gaussian(curandState_t *rand_state, float mean, floa
     // at this point must return upper bound since all others failed
     return upper_bound_for_integral;
 
+}
+
+
+__device__ float erf_approximation(float x)
+{
+    if (x > 0)
+        return 1. - (1. / powf(1 + 0.278393*x + 0.230389*x*x + 0.000972*x*x*x + 0.078108*x*x*x*x, 4));
+    else
+    {
+        x = -x;
+        return -(1. - (1. / powf(1 + 0.278393*x + 0.230389*x*x + 0.000972*x*x*x + 0.078108*x*x*x*x, 4)));
+    }
+}
+
+
+__device__ float approximate_gaussian_cdf(float x, float mu, float sigma)
+{
+    return 1./2. * (1. + erf_approximation((x-mu) / (sigma*powf(2, 0.5))));
+}
+
+
+__device__ int fast_gpu_discrete_gaussian(curandState_t *rand_state, float mean, float width)
+{
+    float lower_bound_for_integral = fmaxf(roundf(mean - 3*width), 0.);
+    float upper_bound_for_integral = roundf(mean + 3*width);
+
+    float integral_of_dist = approximate_gaussian_cdf(upper_bound_for_integral+0.5, mean, width) - approximate_gaussian_cdf(lower_bound_for_integral-0.5, mean, width);
+    
+    //printf("integral %f\\n", integral_of_dist);
+    
+    // get uniform random number
+    float r_uniform = curand_uniform(rand_state);
+
+    float cumulative_dist = 0.;
+    int i;
+    
+    for (i = 0; i < (upper_bound_for_integral-lower_bound_for_integral+1); i++)
+    {
+        cumulative_dist += approximate_gaussian_cdf(lower_bound_for_integral+i+0.5, mean, width) - approximate_gaussian_cdf(lower_bound_for_integral+i-0.5, mean, width);
+        if (r_uniform < cumulative_dist)
+            break;
+    }
+    return lower_bound_for_integral+i;
+}
+
+
+
+
+
+__device__ int *gpu_two_multinomial(curandState_t *rand_state, int num_trials, float prob_success_1, float prob_success_2)
+{
+
+
+	int x = 0;
+	int y = 0;
+    float urv;
+	for(int i = 0; i < num_trials; i++) 
+    {
+        urv = curand_uniform(rand_state);
+        if(urv < prob_success_1)
+            x += 1;
+        else if((urv > prob_success_1) && (urv < (prob_success_1 + prob_success_2)))
+            y += 1;
+	}
+    int a_r[2] = {x, y};
+	return a_r;
+	
 }
 
 
@@ -280,7 +349,6 @@ __device__ int gpu_find_lower_bound(int *num_elements, float *a_sorted, float se
 printf (" Error at % s :% d \ n " , __FILE__ , __LINE__ ) ;\
 return EXIT_FAILURE ;}} while (0)
 
-#include <stdio.h>
 
 __global__ void setup_kernel (int nthreads, curandState *state, unsigned long long seed, unsigned long long offset)
 {
@@ -294,7 +362,7 @@ __global__ void setup_kernel (int nthreads, curandState *state, unsigned long lo
 
 
 
-__global__ void cascade_pmt_model(curandState *state, int *num_trials, int *num_loops, float *a_hist, float *mean_num_pe, float *prob_hit_first_dynode, float *collection_efficiency, float *mean_e_from_dynode, float *width_e_from_dynode, float *probability_electron_ionized, float *underamp_ionization_correction, float *poor_collection_ionization_correction, float *bkg_mean, float *bkg_std, float *bkg_exp, float *prob_exp_bkg, int *num_bins, float *bin_edges)
+__global__ void cascade_pmt_model(curandState *state, int *num_trials, int *num_loops, float *a_hist, float *mean_num_incident_photons, float *prob_pe_from_photocathode, float *prob_pe_from_first_dynode, float *collection_efficiency, float *mean_e_from_dynode, float *width_e_from_dynode, float *probability_electron_ionized, float *underamp_ionization_correction, float *poor_collection_ionization_correction, float *bkg_mean, float *bkg_std, float *bkg_exp, float *prob_exp_bkg, int *num_bins, float *bin_edges, int *num_dynodes_in_chain, float *a_resistance_chain_correction)
 {
     //printf("hello\\n");
     
@@ -302,13 +370,17 @@ __global__ void cascade_pmt_model(curandState *state, int *num_trials, int *num_
     curandState s = state[iteration];
     
     int bin_number;
-    const int num_dynodes = 12;
+    const int num_dynodes = *num_dynodes_in_chain;
+    float num_photons;
+    int i_tot_num_pe;
     float f_tot_num_pe;
     int pe_from_first_dynode;
     int i_poor_collection_electrons;
     float ionization_correction_factor;
     
-    float a_resistance_chain_correction[num_dynodes] = {4, 1.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2}; // https://arxiv.org/pdf/1202.2628.pdf
+    int *multinomial_results;
+    
+    //float a_resistance_chain_correction[num_dynodes] = {4, 1.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2}; // https://arxiv.org/pdf/1202.2628.pdf
     //float a_resistance_chain_correction[num_dynodes] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}; // https://arxiv.org/pdf/1202.2628.pdf
     
     int num_electrons_leaving_dynode;
@@ -322,22 +394,23 @@ __global__ void cascade_pmt_model(curandState *state, int *num_trials, int *num_
         {
             //printf("hello\\n");
             
-            int i_tot_num_pe = curand_poisson(&s, *mean_num_pe);
+            num_photons = curand_poisson(&s, *mean_num_incident_photons);
     
-            if (*prob_hit_first_dynode < 0 || *prob_hit_first_dynode > 1)
+            if (*prob_pe_from_first_dynode < 0 || *prob_pe_from_first_dynode > 1)
             {	
                 state[iteration] = s;
                 continue;
             }
         
+            multinomial_results = gpu_two_multinomial(&s, num_photons, *prob_pe_from_photocathode, *prob_pe_from_first_dynode);
         
-            pe_from_first_dynode = gpu_binomial(&s, i_tot_num_pe, 1-*prob_hit_first_dynode);
-            i_tot_num_pe -= pe_from_first_dynode;
-            
+            i_tot_num_pe = multinomial_results[0];
+            pe_from_first_dynode = multinomial_results[1];
+        
             i_poor_collection_electrons = gpu_binomial(&s, i_tot_num_pe, 1-*collection_efficiency);
             i_tot_num_pe -= i_poor_collection_electrons;
             
-            if (*mean_e_from_dynode < 0)
+            if (*mean_e_from_dynode < 0 || *width_e_from_dynode <= 0)
             {	
                 state[iteration] = s;
                 continue;
@@ -347,18 +420,22 @@ __global__ void cascade_pmt_model(curandState *state, int *num_trials, int *num_
             {
                 for (int i = 0; i < num_dynodes; i++)
                 {
+                    if (i_tot_num_pe <= 0)
+                        break;
                 
                     if (i_tot_num_pe < 10000)
                     {
                         if (i_tot_num_pe < 15)
                         {
-                            num_electrons_leaving_dynode = (int)gpu_discrete_gaussian(&s, *mean_e_from_dynode*i_tot_num_pe*a_resistance_chain_correction[i], *width_e_from_dynode*powf(i_tot_num_pe*a_resistance_chain_correction[i], 0.5));
-                            if (num_electrons_leaving_dynode < 1)
-                                continue;
+                            //printf("width %f\\n", powf((float)i_tot_num_pe*a_resistance_chain_correction[i], 0.5));
+                            num_electrons_leaving_dynode = (int)gpu_discrete_gaussian(&s, *mean_e_from_dynode*i_tot_num_pe*a_resistance_chain_correction[i], *width_e_from_dynode*powf((float)i_tot_num_pe*a_resistance_chain_correction[i], 0.5));
+                            
                         }
                         else
                             num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(i_tot_num_pe*a_resistance_chain_correction[i], 0.5)) + *mean_e_from_dynode*i_tot_num_pe*a_resistance_chain_correction[i] );
                         
+                        if (num_electrons_leaving_dynode < 1)
+                                continue;
                         
                         
                         i_tot_num_pe = gpu_binomial(&s, num_electrons_leaving_dynode, *probability_electron_ionized);
@@ -376,6 +453,8 @@ __global__ void cascade_pmt_model(curandState *state, int *num_trials, int *num_
             {
                 for (int i = 0; i < (num_dynodes); i++)
                 {
+                    if (i_poor_collection_electrons <= 0)
+                        break;
                 
                     if (i_poor_collection_electrons < 10000)
                     {
@@ -403,8 +482,11 @@ __global__ void cascade_pmt_model(curandState *state, int *num_trials, int *num_
             
             if (pe_from_first_dynode > 0)
             {
-                for (int i = 0; i < (num_dynodes-1); i++)
+                for (int i = 1; i < (num_dynodes); i++)
                 {
+                    if (pe_from_first_dynode <= 0)
+                        break;
+                
                     ionization_correction_factor = *underamp_ionization_correction;
                     if (ionization_correction_factor > 1)
                         ionization_correction_factor = 1;
@@ -480,7 +562,7 @@ __global__ void cascade_pmt_model(curandState *state, int *num_trials, int *num_
 
 
 
-__global__ void cascade_pmt_model_array(curandState *state, int *num_trials, int *num_loops, float *a_integrals, float *mean_num_pe, float *prob_hit_first_dynode, float *collection_efficiency, float *mean_e_from_dynode, float *width_e_from_dynode, float *probability_electron_ionized, float *underamp_ionization_correction, float *poor_collection_ionization_correction, float *bkg_mean, float *bkg_std, float *bkg_exp, float *prob_exp_bkg, int *num_bins, float *bin_edges)
+__global__ void cascade_pmt_model_array(curandState *state, int *num_trials, int *num_loops, float *a_integrals, float *mean_num_incident_photons, float *prob_pe_from_photocathode, float *prob_pe_from_first_dynode, float *collection_efficiency, float *mean_e_from_dynode, float *width_e_from_dynode, float *probability_electron_ionized, float *underamp_ionization_correction, float *poor_collection_ionization_correction, float *bkg_mean, float *bkg_std, float *bkg_exp, float *prob_exp_bkg, int *num_bins, float *bin_edges, int *num_dynodes_in_chain, float *a_resistance_chain_correction)
 {
     //printf("hello\\n");
     
@@ -488,13 +570,17 @@ __global__ void cascade_pmt_model_array(curandState *state, int *num_trials, int
     curandState s = state[iteration];
     
     int bin_number;
-    const int num_dynodes = 12;
+    const int num_dynodes = *num_dynodes_in_chain;
     float f_tot_num_pe;
+    int i_tot_num_pe;
     int pe_from_first_dynode;
     int i_poor_collection_electrons;
     float ionization_correction_factor;
     
-    float a_resistance_chain_correction[num_dynodes] = {4, 1.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2}; // https://arxiv.org/pdf/1202.2628.pdf
+    int num_photons;
+    int *multinomial_results;
+    
+    //float a_resistance_chain_correction[num_dynodes] = {4, 1.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2}; // https://arxiv.org/pdf/1202.2628.pdf
     //float a_resistance_chain_correction[num_dynodes] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}; // https://arxiv.org/pdf/1202.2628.pdf
     
     
@@ -509,22 +595,23 @@ __global__ void cascade_pmt_model_array(curandState *state, int *num_trials, int
         {
             //printf("hello\\n");
             
-            int i_tot_num_pe = curand_poisson(&s, *mean_num_pe);
+            num_photons = curand_poisson(&s, *mean_num_incident_photons);
     
-            if (*prob_hit_first_dynode < 0 || *prob_hit_first_dynode > 1)
+            if (*prob_pe_from_first_dynode < 0 || *prob_pe_from_first_dynode > 1)
             {	
                 state[iteration] = s;
                 continue;
             }
         
+            multinomial_results = gpu_two_multinomial(&s, num_photons, *prob_pe_from_photocathode, *prob_pe_from_first_dynode);
         
-            pe_from_first_dynode = gpu_binomial(&s, i_tot_num_pe, 1-*prob_hit_first_dynode);
-            i_tot_num_pe -= pe_from_first_dynode;
-            
+            i_tot_num_pe = multinomial_results[0];
+            pe_from_first_dynode = multinomial_results[1];
+        
             i_poor_collection_electrons = gpu_binomial(&s, i_tot_num_pe, 1-*collection_efficiency);
             i_tot_num_pe -= i_poor_collection_electrons;
             
-            if (*mean_e_from_dynode < 0)
+            if (*mean_e_from_dynode < 0 || *width_e_from_dynode <= 0)
             {	
                 state[iteration] = s;
                 continue;
@@ -534,18 +621,22 @@ __global__ void cascade_pmt_model_array(curandState *state, int *num_trials, int
             {
                 for (int i = 0; i < num_dynodes; i++)
                 {
+                    if (i_tot_num_pe <= 0)
+                        break;
                 
                     if (i_tot_num_pe < 10000)
                     {
                         if (i_tot_num_pe < 15)
                         {
-                            num_electrons_leaving_dynode = (int)gpu_discrete_gaussian(&s, *mean_e_from_dynode*i_tot_num_pe*a_resistance_chain_correction[i], *width_e_from_dynode*powf(i_tot_num_pe*a_resistance_chain_correction[i], 0.5));
-                            if (num_electrons_leaving_dynode < 1)
-                                continue;
+                            //printf("width %f\\n", powf((float)i_tot_num_pe*a_resistance_chain_correction[i], 0.5));
+                            num_electrons_leaving_dynode = (int)gpu_discrete_gaussian(&s, *mean_e_from_dynode*i_tot_num_pe*a_resistance_chain_correction[i], *width_e_from_dynode*powf((float)i_tot_num_pe*a_resistance_chain_correction[i], 0.5));
+                            
                         }
                         else
                             num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(i_tot_num_pe*a_resistance_chain_correction[i], 0.5)) + *mean_e_from_dynode*i_tot_num_pe*a_resistance_chain_correction[i] );
                         
+                        if (num_electrons_leaving_dynode < 1)
+                                continue;
                         
                         
                         i_tot_num_pe = gpu_binomial(&s, num_electrons_leaving_dynode, *probability_electron_ionized);
@@ -563,6 +654,8 @@ __global__ void cascade_pmt_model_array(curandState *state, int *num_trials, int
             {
                 for (int i = 0; i < (num_dynodes); i++)
                 {
+                    if (i_poor_collection_electrons <= 0)
+                        break;
                 
                     if (i_poor_collection_electrons < 10000)
                     {
@@ -590,8 +683,11 @@ __global__ void cascade_pmt_model_array(curandState *state, int *num_trials, int
             
             if (pe_from_first_dynode > 0)
             {
-                for (int i = 0; i < (num_dynodes-1); i++)
+                for (int i = 1; i < (num_dynodes); i++)
                 {
+                    if (pe_from_first_dynode <= 0)
+                        break;
+                
                     ionization_correction_factor = *underamp_ionization_correction;
                     if (ionization_correction_factor > 1)
                         ionization_correction_factor = 1;
@@ -657,8 +753,7 @@ __global__ void cascade_pmt_model_array(curandState *state, int *num_trials, int
 
 
 
-
-__global__ void pure_cascade_spectrum(curandState *state, int *num_trials, float *a_hist, int *num_pe, float *prob_hit_first_dynode, float *collection_efficiency, float *mean_e_from_dynode, float *width_e_from_dynode, float *probability_electron_ionized, float *underamp_ionization_correction, float *poor_collection_ionization_correction, int *num_bins, float *bin_edges)
+__global__ void pure_cascade_spectrum(curandState *state, int *num_trials, float *a_hist, int *num_pe, float *prob_pe_from_photocathode, float *prob_pe_from_first_dynode, float *collection_efficiency, float *mean_e_from_dynode, float *width_e_from_dynode, float *probability_electron_ionized, float *underamp_ionization_correction, float *poor_collection_ionization_correction, int *num_bins, float *bin_edges, int *num_dynodes_in_chain, float *a_resistance_chain_correction)
 {
     //printf("hello\\n");
     
@@ -666,13 +761,15 @@ __global__ void pure_cascade_spectrum(curandState *state, int *num_trials, float
     curandState s = state[iteration];
     
     int bin_number;
-    const int num_dynodes = 12;
+    const int num_dynodes = *num_dynodes_in_chain;
+    int i_tot_num_pe;
     float f_tot_num_pe;
     int pe_from_first_dynode;
     int i_poor_collection_electrons;
     float ionization_correction_factor;
+    int *multinomial_results;
     
-    float a_resistance_chain_correction[num_dynodes] = {4, 1.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2}; // https://arxiv.org/pdf/1202.2628.pdf
+    //float a_resistance_chain_correction[num_dynodes] = {4, 1.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2}; // https://arxiv.org/pdf/1202.2628.pdf
     //float a_resistance_chain_correction[num_dynodes] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}; // https://arxiv.org/pdf/1202.2628.pdf
     
     
@@ -684,15 +781,17 @@ __global__ void pure_cascade_spectrum(curandState *state, int *num_trials, float
     
         int i_tot_num_pe = *num_pe;
 
-        if (*prob_hit_first_dynode < 0 || *prob_hit_first_dynode > 1)
+        if (*prob_pe_from_first_dynode < 0 || *prob_pe_from_first_dynode > 1)
         {	
             state[iteration] = s;
             return;
         }
-    
-        pe_from_first_dynode = gpu_binomial(&s, i_tot_num_pe, 1-*prob_hit_first_dynode);
-        i_tot_num_pe -= pe_from_first_dynode;
         
+        multinomial_results = gpu_two_multinomial(&s, *num_pe, *prob_pe_from_photocathode, *prob_pe_from_first_dynode);
+        
+        i_tot_num_pe = multinomial_results[0];
+        pe_from_first_dynode = multinomial_results[1];
+    
         i_poor_collection_electrons = gpu_binomial(&s, i_tot_num_pe, 1-*collection_efficiency);
         i_tot_num_pe -= i_poor_collection_electrons;
         
@@ -706,18 +805,22 @@ __global__ void pure_cascade_spectrum(curandState *state, int *num_trials, float
         {
             for (int i = 0; i < num_dynodes; i++)
             {
+                if (i_tot_num_pe <= 0)
+                    break;
             
                 if (i_tot_num_pe < 10000)
                 {
                     if (i_tot_num_pe < 15)
                     {
-                        num_electrons_leaving_dynode = (int)gpu_discrete_gaussian(&s, *mean_e_from_dynode*i_tot_num_pe*a_resistance_chain_correction[i], *width_e_from_dynode*powf(i_tot_num_pe*a_resistance_chain_correction[i], 0.5));
-                        if (num_electrons_leaving_dynode < 1)
-                            continue;
+                        //printf("width %f\\n", powf((float)i_tot_num_pe*a_resistance_chain_correction[i], 0.5));
+                        num_electrons_leaving_dynode = (int)gpu_discrete_gaussian(&s, *mean_e_from_dynode*i_tot_num_pe*a_resistance_chain_correction[i], *width_e_from_dynode*powf((float)i_tot_num_pe*a_resistance_chain_correction[i], 0.5));
+                        
                     }
                     else
                         num_electrons_leaving_dynode = (int)roundf( (curand_normal(&s) * *width_e_from_dynode*powf(i_tot_num_pe*a_resistance_chain_correction[i], 0.5)) + *mean_e_from_dynode*i_tot_num_pe*a_resistance_chain_correction[i] );
                     
+                    if (num_electrons_leaving_dynode < 1)
+                            continue;
                     
                     
                     i_tot_num_pe = gpu_binomial(&s, num_electrons_leaving_dynode, *probability_electron_ionized);
@@ -762,7 +865,7 @@ __global__ void pure_cascade_spectrum(curandState *state, int *num_trials, float
         
         if (pe_from_first_dynode > 0)
         {
-            for (int i = 0; i < (num_dynodes-1); i++)
+            for (int i = 1; i < (num_dynodes); i++)
             {
                 ionization_correction_factor = *underamp_ionization_correction;
                 if (ionization_correction_factor > 1)
@@ -824,22 +927,23 @@ __global__ void pure_cascade_spectrum(curandState *state, int *num_trials, float
 
 
 
-__global__ void fixed_pe_cascade_spectrum(curandState *state, int *num_trials, int *num_loops, float *a_hist, int *num_pe, float *prob_hit_first_dynode, float *collection_efficiency, float *mean_e_from_dynode, float *width_e_from_dynode, float *probability_electron_ionized, float *underamp_ionization_correction, float *poor_collection_ionization_correction, float *bkg_mean, float *bkg_std, float *bkg_exp, float *prob_exp_bkg, int *num_bins, float *bin_edges)
+__global__ void fixed_pe_cascade_spectrum(curandState *state, int *num_trials, int *num_loops, float *a_hist, int *fixed_num_photons, float *prob_pe_from_photocathode, float *prob_pe_from_first_dynode, float *collection_efficiency, float *mean_e_from_dynode, float *width_e_from_dynode, float *probability_electron_ionized, float *underamp_ionization_correction, float *poor_collection_ionization_correction, float *bkg_mean, float *bkg_std, float *bkg_exp, float *prob_exp_bkg, int *num_bins, float *bin_edges, int *num_dynodes_in_chain, float *a_resistance_chain_correction)
 {
 
     int iteration = blockIdx.x * blockDim.x * blockDim.y + threadIdx.y * blockDim.x + threadIdx.x;
     curandState s = state[iteration];
     
     int bin_number;
-    const int num_dynodes = 12;
-    const int fixed_num_pe = *num_pe;
+    const int num_dynodes = *num_dynodes_in_chain;
     float f_tot_num_pe;
     int i_tot_num_pe;
+    int num_photons;
+    int *multinomial_results;
     int pe_from_first_dynode;
     int i_poor_collection_electrons;
     float ionization_correction_factor;
     
-    float a_resistance_chain_correction[num_dynodes] = {4, 1.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2}; // https://arxiv.org/pdf/1202.2628.pdf
+    //float a_resistance_chain_correction[num_dynodes] = {4, 1.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2}; // https://arxiv.org/pdf/1202.2628.pdf
     //float a_resistance_chain_correction[num_dynodes] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}; // https://arxiv.org/pdf/1202.2628.pdf
     
     int num_electrons_leaving_dynode;
@@ -852,19 +956,19 @@ __global__ void fixed_pe_cascade_spectrum(curandState *state, int *num_trials, i
         for (repetition_number=0; repetition_number < *num_loops; repetition_number++)
         {
         
-            i_tot_num_pe = fixed_num_pe;
-
-
-            if (*prob_hit_first_dynode < 0 || *prob_hit_first_dynode > 1)
+            num_photons = *fixed_num_photons;
+    
+            if (*prob_pe_from_first_dynode < 0 || *prob_pe_from_first_dynode > 1)
             {	
                 state[iteration] = s;
                 continue;
             }
         
+            multinomial_results = gpu_two_multinomial(&s, num_photons, *prob_pe_from_photocathode, *prob_pe_from_first_dynode);
         
-            pe_from_first_dynode = gpu_binomial(&s, i_tot_num_pe, 1-*prob_hit_first_dynode);
-            i_tot_num_pe -= pe_from_first_dynode;
-            
+            i_tot_num_pe = multinomial_results[0];
+            pe_from_first_dynode = multinomial_results[1];
+        
             i_poor_collection_electrons = gpu_binomial(&s, i_tot_num_pe, 1-*collection_efficiency);
             i_tot_num_pe -= i_poor_collection_electrons;
             
@@ -934,7 +1038,7 @@ __global__ void fixed_pe_cascade_spectrum(curandState *state, int *num_trials, i
             
             if (pe_from_first_dynode > 0)
             {
-                for (int i = 0; i < (num_dynodes-1); i++)
+                for (int i = 1; i < (num_dynodes); i++)
                 {
                     ionization_correction_factor = *underamp_ionization_correction;
                     if (ionization_correction_factor > 1)

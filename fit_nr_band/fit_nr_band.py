@@ -2065,8 +2065,8 @@ class fit_nr(object):
             
             
             a_free_par_guesses = []
-            a_free_par_guesses += [test.nest_lindhard_model['values']['w_value'], test.nest_lindhard_model['values']['alpha'], test.nest_lindhard_model['values']['zeta'], test.nest_lindhard_model['values']['beta'], a_guesses[0], test.nest_lindhard_model['values']['delta'], a_guesses[1], test.nest_lindhard_model['values']['eta'], test.nest_lindhard_model['values']['lambda']]
-            a_free_par_guesses += [test.g1_value, test.extraction_efficiency_value, test.gas_gain_value, test.gas_gain_width, 0.2]
+            a_free_par_guesses += [self.nest_lindhard_model['values']['w_value'], self.nest_lindhard_model['values']['alpha'], self.nest_lindhard_model['values']['zeta'], self.nest_lindhard_model['values']['beta'], a_guesses[0], self.nest_lindhard_model['values']['delta'], a_guesses[1], self.nest_lindhard_model['values']['eta'], self.nest_lindhard_model['values']['lambda']]
+            a_free_par_guesses += [self.g1_value, self.extraction_efficiency_value, self.gas_gain_value, self.gas_gain_width, 0.2]
             a_free_par_guesses += list(a_guesses[-8:])
         
 
@@ -2076,8 +2076,8 @@ class fit_nr(object):
         
         
             a_free_par_guesses = []
-            a_free_par_guesses += [test.nest_lindhard_model['values']['w_value'], test.nest_lindhard_model['values']['alpha'], test.nest_lindhard_model['values']['zeta'], test.nest_lindhard_model['values']['beta'], a_guesses[0], test.nest_lindhard_model['values']['delta'], a_guesses[1], test.nest_lindhard_model['values']['eta'], test.nest_lindhard_model['values']['lambda']]
-            a_free_par_guesses += [test.g1_value, test.extraction_efficiency_value, test.gas_gain_value, test.gas_gain_width, 0.2]
+            a_free_par_guesses += [self.nest_lindhard_model['values']['w_value'], self.nest_lindhard_model['values']['alpha'], self.nest_lindhard_model['values']['zeta'], self.nest_lindhard_model['values']['beta'], a_guesses[0], self.nest_lindhard_model['values']['delta'], a_guesses[1], self.nest_lindhard_model['values']['eta'], self.nest_lindhard_model['values']['lambda']]
+            a_free_par_guesses += [self.g1_value, self.extraction_efficiency_value, self.gas_gain_value, self.gas_gain_width, 0.2]
             a_free_par_guesses += list(a_guesses[-9:])
 
 
@@ -2087,8 +2087,8 @@ class fit_nr(object):
         
         
             a_free_par_guesses = []
-            a_free_par_guesses += [test.nest_lindhard_model['values']['w_value'], test.nest_lindhard_model['values']['alpha'], test.nest_lindhard_model['values']['zeta'], test.nest_lindhard_model['values']['beta'], a_guesses[0], test.nest_lindhard_model['values']['delta'], a_guesses[1], test.nest_lindhard_model['values']['eta'], test.nest_lindhard_model['values']['lambda']]
-            a_free_par_guesses += [test.g1_value, test.extraction_efficiency_value, test.gas_gain_value, test.gas_gain_width, 0.2]
+            a_free_par_guesses += [self.nest_lindhard_model['values']['w_value'], self.nest_lindhard_model['values']['alpha'], self.nest_lindhard_model['values']['zeta'], self.nest_lindhard_model['values']['beta'], a_guesses[0], self.nest_lindhard_model['values']['delta'], a_guesses[1], self.nest_lindhard_model['values']['eta'], self.nest_lindhard_model['values']['lambda']]
+            a_free_par_guesses += [self.g1_value, self.extraction_efficiency_value, self.gas_gain_value, self.gas_gain_width, 0.2]
             a_free_par_guesses += list(a_guesses[-10:])
 
 
@@ -2173,7 +2173,7 @@ if __name__ == '__main__':
     """
     
     
-    test = fit_nr(d_coincidence_data, 'sb_ms', num_mc_events=2e4, l_gpus=[0], num_loops=400)
+    test = fit_nr(d_coincidence_data, 'sb_ms', num_mc_events=2e6, l_gpus=[0], num_loops=4)
 
     # ln_likelihood_full_matching_band(self, w_value, alpha, zeta, beta, gamma, delta, kappa, eta, lamb, g1_value, extraction_efficiency_value, gas_gain_mean_value, gas_gain_width_value, dpe_prob, s1_bias_par, s1_smearing_par, s2_bias_par, s2_smearing_par, acceptance_par, cut_acceptance_par, prob_bkg, scale_par, d_gpu_local_info, draw_fit=False)
     
@@ -2181,14 +2181,14 @@ if __name__ == '__main__':
     # [0.01295242, 0.13219845, 0.02412865, 0.10884726, 0.37039122, 0.38418219, 0.37310507, -0.72129448, 1.44983571, 3.65409564, 0.06681038, 12.07172419] # 610.2
     l_parameters += [test.nest_lindhard_model['values']['w_value'], test.nest_lindhard_model['values']['alpha'], test.nest_lindhard_model['values']['zeta'], test.nest_lindhard_model['values']['beta'], test.nest_lindhard_model['values']['gamma'], test.nest_lindhard_model['values']['delta'], test.nest_lindhard_model['values']['kappa'], test.nest_lindhard_model['values']['eta'], test.nest_lindhard_model['values']['lambda']]
     l_parameters += [test.g1_value, test.extraction_efficiency_value, test.gas_gain_value, test.gas_gain_width, 0.2, 0.02412865, 0.10884726, 0.37039122, 0.38418219, 0.37310507, -0.72129448, 1.44983571, 3.65409564, 0.06681038, 12.07172419]
-    test.gpu_pool.map(test.wrapper_ln_likelihood_full_matching_band_with_ms_scale, [l_parameters])
+    #test.gpu_pool.map(test.wrapper_ln_likelihood_full_matching_band_with_ms_scale, [l_parameters])
     
     
     #a_free_par_bounds = [(0.001, 0.04), (0.1, 0.2), (0, 1.), (0, 1.), (0, 1.), (0, 1.), (0, 6), (-2, 2), (0.3, 2.1), (1.3, 7), (0., 0.5), (1.0, 16.)]
     #test.differential_evolution_minimizer_free_pars(a_free_par_bounds, maxiter=150, popsize=15, tol=0.01)
     
     #test.suppress_likelihood()
-    #test.run_mcmc(num_steps=160, num_walkers=256)
+    test.run_mcmc(num_steps=160, num_walkers=256)
     
     
     

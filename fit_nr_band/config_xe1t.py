@@ -72,10 +72,10 @@ spe_res_uncertainty = 0.0001
 
 dpe_lb = 0.17
 dpe_ub = 0.24
-dpe_median = (dpe_ub-dpe_lb)
+dpe_median = (dpe_ub-dpe_lb)/2. + dpe_lb
 dpe_std = (1./12.*(dpe_ub-dpe_lb)**2)**0.5
 
-bias_median = (1. - 0.)/0.5
+bias_median = (1. - 0.)/2. + 0.
 bias_std = (1./12.*(1. - 0.)**2)**0.5
 
 extraction_efficiency_value = 0.961 #0.936

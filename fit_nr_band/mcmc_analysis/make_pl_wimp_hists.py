@@ -52,7 +52,7 @@ import pycuda.driver as drv
 
 l_grid_parameters = ['alpha', 'acceptance_par']
 num_mc_events = int(2e6)
-num_loops = 40*3
+num_loops = 40*30
 
 fiducial_volume_mass = 1000. # kg
 print '\n\nGiving rate assuming %0.f kg FV\n\n\n' % (fiducial_volume_mass)
@@ -258,7 +258,7 @@ for alpha_sigma_level in tqdm.tqdm(l_sigma_levels):
         
         #print '\nEvents per day: %f\n' % (count_events*current_analysis.get_scale_factor())
                 
-        h_current.Scale(current_analysis.get_scale_factor())
+        h_current.Scale(current_analysis.get_scale_factor() / num_loops)
         
         d_histograms[s_key] = h_current
         d_histograms[s_key].Write()
