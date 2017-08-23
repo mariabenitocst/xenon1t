@@ -1626,7 +1626,7 @@ class fit_nr(object):
         a_s1_s2_mc = np.multiply(a_s1_s2_mc, float(scale_par)*self.d_coincidence_data_information['num_data_pts']/float(self.num_mc_events*self.num_loops))
 
         # likelihood for band with ms scale
-        if not draw_fit:
+        if draw_fit:
 
             f, (ax1, ax2) = plt.subplots(2, sharex=True, sharey=True)
 
@@ -1645,8 +1645,8 @@ class fit_nr(object):
             #    if val != 0:
             #        s1_s2_data_plot[x, y] -= val
             
-            print '\n\nMaking pickle file of histogram'
-            pickle.dump(s1_s2_mc_plot, open('./temp_results/electron_lifetime_correction/hist_without_correction.p', 'wb'))
+            #print '\n\nMaking pickle file of histogram'
+            #pickle.dump(s1_s2_mc_plot, open('./temp_results/electron_lifetime_correction/hist_without_correction.p', 'wb'))
             
             
             ax1.pcolormesh(self.a_s1_bin_edges, self.a_log_bin_edges, s1_s2_data_plot)
@@ -2173,7 +2173,7 @@ if __name__ == '__main__':
     """
     
     
-    test = fit_nr(d_coincidence_data, 'sb_ms', num_mc_events=2e6, l_gpus=[0], num_loops=4)
+    test = fit_nr(d_coincidence_data, 'sb_ms', num_mc_events=2e6, l_gpus=[0, 1, 2, 3, 4, 5], num_loops=4)
 
     # ln_likelihood_full_matching_band(self, w_value, alpha, zeta, beta, gamma, delta, kappa, eta, lamb, g1_value, extraction_efficiency_value, gas_gain_mean_value, gas_gain_width_value, dpe_prob, s1_bias_par, s1_smearing_par, s2_bias_par, s2_smearing_par, acceptance_par, cut_acceptance_par, prob_bkg, scale_par, d_gpu_local_info, draw_fit=False)
     

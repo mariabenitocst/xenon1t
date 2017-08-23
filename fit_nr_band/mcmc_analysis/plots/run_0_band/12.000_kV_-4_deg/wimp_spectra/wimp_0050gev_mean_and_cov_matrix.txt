@@ -4,11 +4,11 @@ Using 1000.00 kg Fiducial Volume Mass
 Parameters: alpha, acceptance_par
 
 Means:
-[ 1.20592083  0.84476617]
+[ 1.24116182  0.90263077]
 
 Covariance Matrix:
-[[ 0.00428701  0.00471931]
- [ 0.00471931  0.5174675 ]]
+[[  6.69944390e-05  -3.04963146e-04]
+ [ -3.04963146e-04   7.35889799e-02]]
 Number of Events Simulated:
-2000000
+2400000
 
