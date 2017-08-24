@@ -1213,7 +1213,92 @@ __global__ void gaussian_pmt_model(curandState *state, int *num_trials, int *num
 }
 
 
-__global__ void pure_gaussian_spectrum(curandState *state, int *num_trials, float *a_hist, int *num_pe, float *spe_mean, float *spe_std, int *num_bins, float *bin_edges)
+__global__ void gaussian_pmt_model_arrays(curandState *state, int *num_trials, int *num_loops, float *a_integrals, float *mean_num_pe, float *prob_not_under_amp, float *spe_mean, float *spe_std, float *under_amp_mean, float *under_amp_std, float *bkg_mean, float *bkg_std, float *bkg_exp, float *prob_exp_bkg)
+{
+    //printf("hello\\n");
+    
+    int iteration = blockIdx.x * blockDim.x * blockDim.y + threadIdx.y * blockDim.x + threadIdx.x;
+    curandState s = state[iteration];
+    
+    float f_tot_num_e;
+    int pe_from_first_dynode;
+    int num_fully_amplified;
+    int num_under_amplified;
+    int i_tot_num_pe;
+    
+    int repetition_number;
+    
+    if (iteration < *num_trials)
+	{
+    
+        for (repetition_number=0; repetition_number < 1; repetition_number++)
+        {
+            //printf("hello\\n");
+            
+            if (*prob_not_under_amp < 0 || *prob_not_under_amp > 1)
+            {	
+                state[iteration] = s;
+                continue;
+                //return;
+            }
+            
+            i_tot_num_pe = curand_poisson(&s, *mean_num_pe);
+            num_under_amplified = gpu_binomial(&s, i_tot_num_pe, 1.-*prob_not_under_amp);
+            num_fully_amplified = i_tot_num_pe - num_under_amplified;
+    
+            if (*spe_std < 0)
+            {	
+                state[iteration] = s;
+                continue;
+                //return;
+            }
+            f_tot_num_e = (curand_normal(&s) * *spe_std*powf(num_fully_amplified, 0.5)) + *spe_mean*num_fully_amplified;
+            
+            if (*under_amp_std < 0)
+            {	
+                state[iteration] = s;
+                continue;
+                //return;
+            }
+            f_tot_num_e += (curand_normal(&s) * *under_amp_std*powf(num_under_amplified, 0.5)) + *under_amp_mean*num_under_amplified;
+    
+            
+            if (*bkg_std < 0)
+            {	
+                state[iteration] = s;
+                continue;
+                //return;
+            }
+            f_tot_num_e += (curand_normal(&s) * *bkg_std) + *bkg_mean;
+            
+            
+            if (*bkg_exp < 0)
+            {
+                state[iteration] = s;
+                return;
+            }
+            if(curand_uniform(&s) < *prob_exp_bkg)
+                f_tot_num_e += gpu_exponential(&s, *bkg_exp, *bkg_mean);
+            
+        }
+        
+        a_integrals[iteration] = f_tot_num_e;
+        
+        
+		return;
+        
+        
+        
+    }
+    
+
+
+}
+
+
+
+
+__global__ void pure_gaussian_spectrum(curandState *state, int *num_trials, float *a_hist, int *num_pe, float *prob_not_under_amp, float *spe_mean, float *spe_std, float *under_amp_mean, float *under_amp_std, int *num_bins, float *bin_edges)
 {
     //printf("hello\\n");
     
@@ -1223,21 +1308,29 @@ __global__ void pure_gaussian_spectrum(curandState *state, int *num_trials, floa
     int bin_number;
     float f_tot_num_e;
     int i_tot_num_pe = *num_pe;
+    int num_fully_amplified;
+    int num_under_amplified;
     
     
     if (iteration < *num_trials)
 	{
 
+        num_under_amplified = gpu_binomial(&s, i_tot_num_pe, 1.-*prob_not_under_amp);
+        num_fully_amplified = i_tot_num_pe - num_under_amplified;
+
         if (*spe_std < 0)
-		{	
-			state[iteration] = s;
-			return;
-		}
-        
-        if (i_tot_num_pe > 0)
-        {
-            f_tot_num_e = (curand_normal(&s) * *spe_std*powf(i_tot_num_pe, 0.5)) + *spe_mean*i_tot_num_pe;
+        {	
+            state[iteration] = s;
+            return;
         }
+        f_tot_num_e = (curand_normal(&s) * *spe_std*powf(num_fully_amplified, 0.5)) + *spe_mean*num_fully_amplified;
+        
+        if (*under_amp_std < 0)
+        {	
+            state[iteration] = s;
+            return;
+        }
+        f_tot_num_e += (curand_normal(&s) * *under_amp_std*powf(num_under_amplified, 0.5)) + *under_amp_mean*num_under_amplified;
         
         bin_number = gpu_find_lower_bound(num_bins, bin_edges, f_tot_num_e);
 		
@@ -1294,7 +1387,7 @@ __global__ void fixed_pe_gaussian_spectrum(curandState *state, int *num_trials, 
                 //return;
             }
             
-            i_tot_num_pe = fixed_num_pe;
+            i_tot_num_pe = curand_poisson(&s, *mean_num_pe);
             num_under_amplified = gpu_binomial(&s, i_tot_num_pe, 1.-*prob_not_under_amp);
             num_fully_amplified = i_tot_num_pe - num_under_amplified;
     
@@ -1344,7 +1437,6 @@ __global__ void fixed_pe_gaussian_spectrum(curandState *state, int *num_trials, 
             
             atomicAdd(&a_hist[bin_number], 1);
             
-            state[iteration] = s;
             //printf("hi: %f\\n", f_tot_num_e);
         }
         
